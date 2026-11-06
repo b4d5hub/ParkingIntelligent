@@ -43,6 +43,16 @@ La recherche JDBC des comptes et l'adaptation Spring Security se trouvent dans l
 
 L'encodeur Argon2id utilise Bouncy Castle `bcprov-jdk18on` 1.86, ajoute en dependance d'execution avec une version explicite. Les comptes devront recevoir une empreinte produite par cet encodeur, avec le prefixe `{argon2}` ; ne pas creer une empreinte manuellement ou stocker du texte clair.
 
-Ne pas activer le profil `auth` avant revue et application du script des comptes. Cette configuration ne fournit pas encore les endpoints communs `/api/auth/**`, la protection du proprietaire ou les sessions JDBC. Les tests de cette couche simulent le stockage : ils ne valident pas le schema PostgreSQL.
+Ne pas activer le profil `auth` avant revue et application du script des comptes. Le parcours HTTP decrit ci-dessous prepare maintenant les endpoints communs `/api/auth/**`. La protection du proprietaire et les sessions JDBC restent a implementer. Les tests simulent le stockage : ils ne valident pas le schema PostgreSQL.
 
 Verification du 6 novembre 2026 : compilation Java 21 et vingt tests cibles reussis, dont treize nouveaux tests de la couche des comptes et les sept tests MVC existants. Aucun acces a PostgreSQL, aucune application des scripts.
+
+## Parcours HTTP prepare
+
+Le profil `auth` fournit maintenant CSRF, login, me et logout sous `/api/auth`. La connexion et la deconnexion utilisent les filtres Spring et des reponses JSON. Les autres routes sont refusees en attendant les droits metier et les controles de proprietaire.
+
+`application-auth.properties` prepare le cookie `PARKING_SESSION` avec `HttpOnly`, `Secure` et `SameSite=Lax`, une ecoute sur loopback, et un delai d'inactivite de 30 minutes. Il faudra HTTPS pour tester normalement ce cookie dans le navigateur. Aucun serveur HTTPS ni exception HTTP locale n'a ete ajoute.
+
+Les sessions restent en memoire ; ni JDBC, ni expiration absolue, ni revocation des anciennes sessions apres modification d'un compte, ni limitation des essais n'ont ete ajoutes. Le parcours n'est pas encore pret pour un deploiement en ligne.
+
+Resultat du 6 novembre 2026 : compilation Java 21 et 34 tests cibles reussis, dont 14 tests HTTP d'authentification et les 20 tests precedents. Ils utilisent MockMvc et un stockage simule, sans connexion a PostgreSQL ni execution des scripts. Les cookies du vrai serveur et le navigateur restent a verifier.

@@ -2,7 +2,7 @@
 
 Date : 6 novembre 2026.
 
-Ce document définit la conception de l'authentification pour les quatre modules. Il permet à chaque membre de préparer son intégration. Il ne décrit pas une fonctionnalité déjà disponible : aucun login, contrôle de rôle ou stockage de session n'est encore implémenté dans le projet inspecté.
+Ce document définit la conception de l'authentification pour les quatre modules. Il permet à chaque membre de préparer son intégration. La couche des comptes et le parcours HTTP de connexion sont maintenant implémentés et testés avec un stockage simulé. Les scripts SQL ne sont pas appliqués ; la persistance des sessions, les droits métier et l'intégration des autres services restent à réaliser.
 
 L'approche retenue pour le prototype est une connexion unique avec une session côté serveur. Le navigateur conserve seulement un cookie opaque. Les quatre services appliquent les droits sur leurs propres données.
 
@@ -184,15 +184,15 @@ Vérifier au minimum les scénarios suivants, avec deux conducteurs distincts et
 - Aucun cookie, secret ou mot de passe n'apparaît dans les journaux ; les chemins internes sont inaccessibles depuis l'entrée publique.
 - Les appels protégés et la charge de vérification des mots de passe respectent les objectifs mesurés du prototype.
 
-Ces scénarios d'authentification restent à implémenter et à exécuter. Les tests du contrôleur de consultation déjà écrits utilisent un service simulé et ne prouvent pas ces garanties.
+Ces scénarios restent à vérifier en intégration réelle. Les tests avec stockage simulé décrits plus bas couvrent une partie du parcours d'authentification, mais ne prouvent pas le fonctionnement de PostgreSQL, des cookies dans le navigateur ou des échanges entre services.
 
 Vérification du 6 novembre 2026 : après autorisation du téléchargement des composants Maven manquants, les six tests ciblés du contrôleur ont réussi avec Java 21, sans échec ni erreur. Ils couvrent les réponses JSON, une liste vide, une réservation trouvée ou absente, les identifiants invalides et la désactivation des routes sans profil `local`. Ils n'utilisent pas PostgreSQL et ne testent pas encore l'authentification.
 
 ## Situation actuelle et prochaine étape
 
-Le contrôleur de consultation est limité par `@Profile("local")` et la configuration locale écoute sur loopback. Ce profil n'est pas une authentification et ne doit pas servir de mode de déploiement. Les contrôles HTTP réalisés jusqu'ici ont vérifié une liste vide, des identifiants invalides, une réservation absente et le health endpoint, sans login.
+Le contrôleur de consultation reste limité par `@Profile("local")`. Le parcours d'authentification est limité au profil `auth`, inactif par défaut. Ce profil refuse actuellement les routes métier, même après connexion, tant que les contrôles de rôle et de propriétaire ne sont pas branchés. Ces profils ne constituent pas une configuration prête pour un déploiement en ligne.
 
-La prochaine étape d'implémentation proposée est le socle des comptes et de la connexion dans Réservations, avec migrations explicites et tests de session/CSRF. Ensuite seulement, brancher le contrôle du propriétaire sur la consultation, puis intégrer les autres services. Ne pas retirer la restriction locale avant que la sécurité réelle soit testée.
+La prochaine étape proposée est la revue des tables de comptes, puis leur application uniquement après autorisation explicite et vérification des données existantes. Il faudra ensuite tester la recherche réelle, configurer et tester les sessions JDBC, puis les contrôles de propriétaire et les échanges internes. La limitation des essais et la révocation doivent être ajoutées avant une utilisation réelle en ligne.
 
 Avant cette étape, l'équipe doit confirmer la responsabilité de l'authentification, la correspondance `userId` / `conducteur_id`, le provisioning des comptes, les clients machines et la configuration de l'origine publique. Les règles de paiement, de tolérance d'absence et de remboursement restent indépendantes et non décidées par ce document.
 
@@ -202,7 +202,7 @@ La rédaction de ce document ne modifie ni le code, ni le POM, ni la base. Tout 
 
 Étape suivante réalisée le 6 novembre 2026 : le POM contient maintenant le starter Spring Security, le module Spring Session JDBC et le starter de tests Security, avec les versions gérées par Spring Boot 4.1.2. Le build et les sept tests MVC ciblés ont réussi avec Java 21, y compris le refus des appels anonymes. Cela remplace le précédent résultat de six tests pour le contrôleur.
 
-Le starter active les protections Spring par défaut lors d'un nouveau démarrage, y compris sur le health endpoint. Le login commun décrit ici, les rôles métier et les contrôles de propriétaire restent à implémenter. Le module Session JDBC est ajouté directement, sans starter Session Boot et sans activation de la session JDBC avant approbation des tables. Les [modalités Spring Boot](https://docs.spring.io/spring-boot/reference/web/spring-session.html) permettent cette préparation sans activer le stockage de session.
+Hors profil `auth`, le starter active les protections Spring par défaut lors d'un nouveau démarrage, y compris sur le health endpoint. Le parcours spécifique au profil `auth` est décrit plus bas ; les droits métier et les contrôles de propriétaire restent à implémenter. Le module Session JDBC est ajouté directement, sans starter Session Boot et sans activation de la session JDBC avant approbation des tables. Les [modalités Spring Boot](https://docs.spring.io/spring-boot/reference/web/spring-session.html) permettent cette préparation sans activer le stockage de session.
 
 Les propositions SQL se trouvent dans `reservations-service/src/main/resources/db/auth/001_accounts.sql` et `002_sessions.sql`, avec un `README.md` de revue. Elles n'ont pas été appliquées. Aucun compte n'est créé et aucun lien avec `reservations.conducteur_id` n'est ajouté. Le script de session provient du JAR Spring Session JDBC 4.1.1 résolu localement.
 
@@ -216,6 +216,24 @@ Les mots de passe sont vérifiés par `DaoAuthenticationProvider` avec un encode
 
 Un compte inconnu, désactivé, sans rôle ou avec un mauvais mot de passe ne peut pas être authentifié par cette couche. Le principal conserve l'identifiant interne et le nom affiché ; Spring efface ses credentials après authentification. Le modèle masque son empreinte dans `toString()`. Cela ne remplace pas les futurs DTO de réponse et les contrôles de propriété sur chaque route.
 
-La recherche SQL réelle, le login HTTP commun, CSRF sur ses endpoints, les sessions JDBC, la limitation des essais, la politique de création des mots de passe et la révocation restent à implémenter ou à vérifier. Aucun compte de démonstration n'a été ajouté.
+La recherche SQL réelle, les sessions JDBC, la limitation des essais, la politique de création des mots de passe et la révocation restent à implémenter ou à vérifier. Le parcours HTTP et CSRF est présenté dans la section suivante. Aucun compte de démonstration n'a été ajouté.
 
 Vérification de cette couche le 6 novembre 2026 : compilation Java 21 et vingt tests ciblés réussis, dont treize pour les comptes, l'encodeur et l'activation de configuration, plus les sept tests MVC existants. Ils couvrent notamment le mauvais mot de passe, le compte inconnu ou désactivé, l'absence de rôle, une panne de stockage, l'effacement des credentials et le refus d'un format de mot de passe en clair. Les tests utilisent un stockage simulé et n'accèdent pas à PostgreSQL.
+
+## Parcours HTTP préparé
+
+Les endpoints suivants existent dans le profil `auth` : `GET /api/auth/csrf`, `POST /api/auth/login`, `GET /api/auth/me` et `POST /api/auth/logout`. Login et logout sont gérés par les filtres Spring, sans contrôleur qui vérifierait lui-même les mots de passe. Le login accepte `email` et `password` au format formulaire ; ses succès et erreurs sont en JSON.
+
+Le flux CSRF décrit plus haut est appliqué, y compris sur login et logout. La connexion renouvelle l'identifiant d'une session existante et invalide l'ancien jeton CSRF. Le frontend doit récupérer un nouveau jeton après connexion. Logout invalide la session et demande la suppression du cookie `PARKING_SESSION`.
+
+La réponse login/me contient uniquement `userId` sous forme de chaîne, `displayName` et `roles`. L'identité provient du principal serveur, sans confiance dans les en-têtes d'identité du navigateur. Les erreurs de mot de passe, compte absent ou désactivé ont le même code `INVALID_CREDENTIALS` et le même message. Une panne de stockage renvoie `503 AUTHENTICATION_UNAVAILABLE` ; une session absente renvoie `401 AUTHENTICATION_REQUIRED` ; un refus CSRF renvoie `403 CSRF_INVALID`.
+
+`AuthWebSecurityConfiguration` refuse par défaut les autres routes. La connexion ne donne donc pas encore accès à la liste générale des réservations. HTTP Basic est désactivé dans ce profil et aucune redirection vers une page HTML de connexion n'est utilisée.
+
+`application-auth.properties` limite l'écoute à loopback et prépare un cookie `HttpOnly`, `Secure`, `SameSite=Lax`, sans identifiant de session dans les URL, avec un délai d'inactivité de 30 minutes. `Secure` exige HTTPS pour une utilisation normale dans le navigateur. Aucun serveur HTTPS ni exception HTTP locale n'a été configuré dans cette étape ; ne pas désactiver ce réglage pour contourner un test.
+
+Les sessions HTTP restent actuellement en mémoire. La persistance JDBC, l'expiration absolue de 8 heures, la révocation après changement des droits et la limitation des essais ne sont pas encore implémentées. Les flags réels du cookie, le navigateur, le proxy et le stockage PostgreSQL n'ont pas été vérifiés par MockMvc.
+
+Résultat du 6 novembre 2026 : compilation Java 21 et 34 tests ciblés réussis, dont 14 nouveaux tests HTTP. Ils couvrent notamment la rotation de session, les jetons CSRF absents/invalides/d'une autre session, le refus de l'ancien jeton après login, la déconnexion, les erreurs génériques et le maintien du blocage des réservations. Les 20 tests ciblés précédents passent également. Aucun accès à PostgreSQL ni application de SQL dans cette vérification.
+
+Sources : [connexion Spring Security](https://docs.spring.io/spring-security/reference/servlet/authentication/passwords/form.html), [CSRF Spring Security](https://docs.spring.io/spring-security/reference/servlet/exploits/csrf.html), [déconnexion Spring Security](https://docs.spring.io/spring-security/reference/servlet/authentication/logout.html), [protection contre la fixation de session](https://docs.spring.io/spring-security/reference/servlet/authentication/session-management.html).
