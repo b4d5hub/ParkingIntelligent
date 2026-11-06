@@ -36,3 +36,13 @@ Resultat du 6 novembre 2026 avec Java 21 : compilation reussie et sept tests MVC
 La syntaxe et les contraintes des scripts n'ont pas ete executees dans PostgreSQL. Le schema de session peut etre compare au script du JAR installe, mais seule une execution autorisee permettra de valider les deux fichiers dans la base cible.
 
 Sources : [securite Spring Boot](https://docs.spring.io/spring-boot/reference/web/spring-security.html), [stockage JDBC Spring Session](https://docs.spring.io/spring-session/reference/configuration/jdbc.html).
+
+## Couche des comptes preparee
+
+La recherche JDBC des comptes et l'adaptation Spring Security se trouvent dans le package `auth`. Leur configuration exige explicitement le profil `auth`, qui reste inactif. Les scripts ne sont toujours pas appliques et la recherche reelle dans PostgreSQL n'a pas ete testee.
+
+L'encodeur Argon2id utilise Bouncy Castle `bcprov-jdk18on` 1.86, ajoute en dependance d'execution avec une version explicite. Les comptes devront recevoir une empreinte produite par cet encodeur, avec le prefixe `{argon2}` ; ne pas creer une empreinte manuellement ou stocker du texte clair.
+
+Ne pas activer le profil `auth` avant revue et application du script des comptes. Cette configuration ne fournit pas encore les endpoints communs `/api/auth/**`, la protection du proprietaire ou les sessions JDBC. Les tests de cette couche simulent le stockage : ils ne valident pas le schema PostgreSQL.
+
+Verification du 6 novembre 2026 : compilation Java 21 et vingt tests cibles reussis, dont treize nouveaux tests de la couche des comptes et les sept tests MVC existants. Aucun acces a PostgreSQL, aucune application des scripts.

@@ -205,3 +205,17 @@ La rédaction de ce document ne modifie ni le code, ni le POM, ni la base. Tout 
 Le starter active les protections Spring par défaut lors d'un nouveau démarrage, y compris sur le health endpoint. Le login commun décrit ici, les rôles métier et les contrôles de propriétaire restent à implémenter. Le module Session JDBC est ajouté directement, sans starter Session Boot et sans activation de la session JDBC avant approbation des tables. Les [modalités Spring Boot](https://docs.spring.io/spring-boot/reference/web/spring-session.html) permettent cette préparation sans activer le stockage de session.
 
 Les propositions SQL se trouvent dans `reservations-service/src/main/resources/db/auth/001_accounts.sql` et `002_sessions.sql`, avec un `README.md` de revue. Elles n'ont pas été appliquées. Aucun compte n'est créé et aucun lien avec `reservations.conducteur_id` n'est ajouté. Le script de session provient du JAR Spring Session JDBC 4.1.1 résolu localement.
+
+## Préparation de la couche des comptes
+
+Le package `com.parking.reservations_service.auth` contient maintenant le modèle de compte, les trois rôles, une recherche JDBC par email et l'adaptation vers `UserDetailsService`. La requête utilise un paramètre SQL et les rôles proviennent des tables proposées. Ces classes ne sont pas des entités JPA ; elles n'ajoutent pas de validation Hibernate de tables encore absentes.
+
+`AuthAccountConfiguration` est limitée au profil `auth`, inactif par défaut. Aucun profil n'a été activé pour l'application locale et aucun script SQL n'a été appliqué. Ne pas activer ce profil avant approbation et création des tables. Il prépare la recherche des comptes ; il ne constitue pas encore la configuration finale du login, des routes et des sessions.
+
+Les mots de passe sont vérifiés par `DaoAuthenticationProvider` avec un encodeur Argon2id Spring, préfixé `{argon2}`. La configuration utilise 19 MiB, deux passes et un parallélisme de 1. La dépendance d'exécution `bcprov-jdk18on` est fixée à 1.86, version stable vérifiée auprès de [Bouncy Castle](https://www.bouncycastle.org/download/bouncy-castle-java/), car elle n'est pas gérée par le BOM Boot utilisé. [Spring documente cette dépendance pour son encodeur Argon2](https://docs.spring.io/spring-security/reference/features/authentication/password-storage.html).
+
+Un compte inconnu, désactivé, sans rôle ou avec un mauvais mot de passe ne peut pas être authentifié par cette couche. Le principal conserve l'identifiant interne et le nom affiché ; Spring efface ses credentials après authentification. Le modèle masque son empreinte dans `toString()`. Cela ne remplace pas les futurs DTO de réponse et les contrôles de propriété sur chaque route.
+
+La recherche SQL réelle, le login HTTP commun, CSRF sur ses endpoints, les sessions JDBC, la limitation des essais, la politique de création des mots de passe et la révocation restent à implémenter ou à vérifier. Aucun compte de démonstration n'a été ajouté.
+
+Vérification de cette couche le 6 novembre 2026 : compilation Java 21 et vingt tests ciblés réussis, dont treize pour les comptes, l'encodeur et l'activation de configuration, plus les sept tests MVC existants. Ils couvrent notamment le mauvais mot de passe, le compte inconnu ou désactivé, l'absence de rôle, une panne de stockage, l'effacement des credentials et le refus d'un format de mot de passe en clair. Les tests utilisent un stockage simulé et n'accèdent pas à PostgreSQL.
