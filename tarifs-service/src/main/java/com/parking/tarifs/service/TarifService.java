@@ -2,68 +2,72 @@ package com.parking.tarifs.service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.temporal.ChronoUnit;
 
 /**
- * Service métier de calcul des tarifs de stationnement.
+ * Service métier pur de calcul des tarifs de stationnement.
  * <p>
- * Classe <strong>pure</strong> : pas d'annotation Spring, pas d'accès base
- * de données, pas d'appel HTTP. Elle peut être instanciée directement dans
- * les tests JUnit sans démarrer le contexte Spring.
+ * Classe <strong>pure</strong> : aucune annotation Spring, aucun appel HTTP,
+ * aucune dépendance directe à un framework ou une base de données.
+ * <p>
+ * Dépend de l'interface {@link TarifRepository} reçue par son constructeur
+ * pour la lecture et la mise à jour du tarif horaire en vigueur.
  * <p>
  * Formule retenue par l'équipe :
  * <pre>
  *   montant = (duréeEnMinutes / 60) × tarifHoraire × (1 − réduction / 100)
  * </pre>
  * Résultat arrondi à 2 décimales, mode HALF_UP.
- * Devise : MAD (dirham marocain) — aucune conversion dans ce service.
+ * Devise : MAD (dirham marocain).
  * <p>
- * Pas de pénalité de dépassement : décision de l'équipe (paiement au départ
- * sur la durée réelle uniquement).
+ * Pas de pénalité de dépassement : décision de l'équipe (facturation sur la durée réelle).
  */
 public class TarifService {
 
     // ── Constantes ────────────────────────────────────────────────────────────
 
-    /** Utilisée pour convertir les minutes en heures et valider la réduction. */
     private static final BigDecimal SOIXANTE = new BigDecimal("60");
     private static final BigDecimal CENT     = new BigDecimal("100");
 
     /**
-     * Précision intermédiaire pour les divisions (évite la perte d'information
-     * avant l'arrondi final à 2 décimales).
+     * Précision intermédiaire pour les divisions afin d'éviter toute perte
+     * de précision avant l'arrondi final à 2 décimales.
      */
     private static final int PRECISION_INTERMEDIAIRE = 10;
 
-    // ── État ──────────────────────────────────────────────────────────────────
+    // ── Dépendances ───────────────────────────────────────────────────────────
 
-    /** Tarif horaire courant, en DH/h. Valeur initiale : 10,00 DH. */
-    private BigDecimal tarifHoraire;
+    private final TarifRepository repository;
 
     // ── Constructeur ──────────────────────────────────────────────────────────
 
-    /** Crée le service avec le tarif horaire par défaut : 10,00 DH/h. */
-    public TarifService() {
-        this.tarifHoraire = new BigDecimal("10.00");
+    /**
+     * Initialise le service avec son contrat d'accès aux tarifs.
+     *
+     * @param repository fournisseur de stockage du tarif horaire (non nul)
+     */
+    public TarifService(TarifRepository repository) {
+        if (repository == null) {
+            throw new IllegalArgumentException("Le repository ne peut pas être nul.");
+        }
+        this.repository = repository;
     }
 
     // ── API publique ──────────────────────────────────────────────────────────
 
     /**
-     * Calcule le montant estimé pour une durée <em>prévue</em>.
-     * Utilisé lors de la création d'un devis (arrivée/départ non encore connus).
+     * Calcule le montant estimé pour une durée prévue (devis).
      *
-     * @param debut             date/heure de début prévue (non nulle)
-     * @param fin               date/heure de fin prévue (non nulle, ≥ debut)
-     * @param reductionPourcent réduction en % fournie par l'appelant (0 à 100 inclus)
-     * @return montant en DH, à 2 décimales
-     * @throws IllegalArgumentException si les dates sont nulles, fin avant début,
-     *                                  ou réduction hors [0, 100]
+     * @param debut             date/heure de début prévue avec décalage horaire (non nulle)
+     * @param fin               date/heure de fin prévue avec décalage horaire (non nulle, ≥ début)
+     * @param reductionPourcent pourcentage de réduction (0 à 100 inclus)
+     * @return montant estimé en DH, arrondi à 2 décimales
+     * @throws IllegalArgumentException si dates nulles, fin antérieure au début, ou réduction invalide
      */
     public BigDecimal calculerMontantEstime(
-            LocalDateTime debut,
-            LocalDateTime fin,
+            OffsetDateTime debut,
+            OffsetDateTime fin,
             BigDecimal reductionPourcent) {
 
         validerDates(debut, fin);
@@ -72,19 +76,18 @@ public class TarifService {
     }
 
     /**
-     * Calcule le montant final basé sur l'arrivée et le départ <em>réels</em>.
-     * Appelé par l'agent au moment du départ du véhicule.
-     * Pas de pénalité de dépassement : décision de l'équipe.
+     * Calcule le montant final basé sur l'arrivée et le départ réels.
+     * Appelé par le personnel au départ du véhicule.
      *
-     * @param arriveeReelle     date/heure d'arrivée réelle (non nulle)
-     * @param departReel        date/heure de départ réel (non nulle, ≥ arriveeReelle)
-     * @param reductionPourcent réduction en % fournie par l'appelant (0 à 100 inclus)
-     * @return montant en DH, à 2 décimales
-     * @throws IllegalArgumentException mêmes règles que calculerMontantEstime
+     * @param arriveeReelle     date/heure d'arrivée réelle avec décalage horaire (non nulle)
+     * @param departReel        date/heure de départ réel avec décalage horaire (non nulle, ≥ arrivée)
+     * @param reductionPourcent pourcentage de réduction (0 à 100 inclus)
+     * @return montant final en DH, arrondi à 2 décimales
+     * @throws IllegalArgumentException mêmes règles de validation que calculerMontantEstime
      */
     public BigDecimal calculerMontantFinal(
-            LocalDateTime arriveeReelle,
-            LocalDateTime departReel,
+            OffsetDateTime arriveeReelle,
+            OffsetDateTime departReel,
             BigDecimal reductionPourcent) {
 
         validerDates(arriveeReelle, departReel);
@@ -93,48 +96,48 @@ public class TarifService {
     }
 
     /**
-     * Modifie le tarif horaire (action réservée à un administrateur).
-     * Le nouveau prix est arrondi à 2 décimales avant stockage.
+     * Modifie le tarif horaire en vigueur (action réservée à un administrateur).
      *
-     * @param nouveauPrix nouveau tarif en DH/h, strictement positif
-     * @throws IllegalArgumentException si le prix est null, nul ou négatif
+     * @param nouveauPrix tarif horaire en DH/h, strictement positif
+     * @param creePar     identifiant de l'auteur de la modification (non nul, non vide)
+     * @throws IllegalArgumentException si nouveauPrix nul ou non strictement positif,
+     *                                  ou si creePar est nul ou vide
      */
-    public void modifierTarifHoraire(BigDecimal nouveauPrix) {
+    public void modifierTarifHoraire(BigDecimal nouveauPrix, String creePar) {
         if (nouveauPrix == null || nouveauPrix.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException(
                     "Le tarif horaire doit être strictement positif (reçu : " + nouveauPrix + ").");
         }
-        this.tarifHoraire = nouveauPrix.setScale(2, RoundingMode.HALF_UP);
+        if (creePar == null || creePar.trim().isEmpty()) {
+            throw new IllegalArgumentException(
+                    "L'auteur de la modification (creePar) ne peut pas être vide.");
+        }
+        repository.enregistrerNouveauTarif(nouveauPrix.setScale(2, RoundingMode.HALF_UP), creePar.trim());
     }
 
     /**
-     * Retourne le tarif horaire actuellement en vigueur.
+     * Consulte le tarif horaire actuellement en vigueur.
      *
-     * @return tarif horaire en DH/h (toujours ≥ 2 décimales)
+     * @return tarif horaire en DH/h
      */
     public BigDecimal consulterTarifHoraire() {
-        return tarifHoraire;
+        return repository.lireTarifCourant();
     }
 
     // ── Méthodes privées ──────────────────────────────────────────────────────
 
-    /**
-     * Applique la formule commune :
-     * <pre>montant = (minutes / 60) × tarifHoraire × (1 − réduction / 100)</pre>
-     * La division par 60 utilise une précision intermédiaire de 10 décimales
-     * pour éviter toute perte avant l'arrondi final.
-     */
-    private BigDecimal calculer(LocalDateTime debut, LocalDateTime fin, BigDecimal reductionPourcent) {
+    private BigDecimal calculer(OffsetDateTime debut, OffsetDateTime fin, BigDecimal reductionPourcent) {
         long minutes = ChronoUnit.MINUTES.between(debut, fin);
-
         BigDecimal dureeMinutes = new BigDecimal(minutes);
 
-        // duréeHeures = minutes / 60  (division entière évitée grâce à la précision intermédiaire)
+        BigDecimal tarifHoraire = consulterTarifHoraire();
+
+        // montantBrut = (minutes / 60) × tarifHoraire
         BigDecimal montantBrut = dureeMinutes
                 .divide(SOIXANTE, PRECISION_INTERMEDIAIRE, RoundingMode.HALF_UP)
                 .multiply(tarifHoraire);
 
-        // facteur = 1 − (réduction / 100)
+        // facteurReduction = 1 − (réduction / 100)
         BigDecimal facteurReduction = BigDecimal.ONE.subtract(
                 reductionPourcent.divide(CENT, PRECISION_INTERMEDIAIRE, RoundingMode.HALF_UP));
 
@@ -143,8 +146,7 @@ public class TarifService {
                 .setScale(2, RoundingMode.HALF_UP);
     }
 
-    /** Vérifie que les deux dates sont non nulles et que fin n'est pas avant début. */
-    private void validerDates(LocalDateTime debut, LocalDateTime fin) {
+    private void validerDates(OffsetDateTime debut, OffsetDateTime fin) {
         if (debut == null || fin == null) {
             throw new IllegalArgumentException("Les dates de début et de fin ne peuvent pas être nulles.");
         }
@@ -154,7 +156,6 @@ public class TarifService {
         }
     }
 
-    /** Vérifie que la réduction est non nulle et comprise entre 0 et 100 inclus. */
     private void validerReduction(BigDecimal reductionPourcent) {
         if (reductionPourcent == null) {
             throw new IllegalArgumentException("Le pourcentage de réduction ne peut pas être nul.");
@@ -166,4 +167,3 @@ public class TarifService {
         }
     }
 }
-
