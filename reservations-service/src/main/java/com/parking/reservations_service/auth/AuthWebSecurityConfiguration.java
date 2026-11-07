@@ -14,6 +14,12 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CsrfException;
 import tools.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
+import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
+import org.springframework.core.env.Environment;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import java.time.Clock;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -25,9 +31,13 @@ import static org.springframework.security.config.Customizer.withDefaults;
 public class AuthWebSecurityConfiguration {
 
     @Bean
-    SecurityFilterChain authSecurityFilterChain(HttpSecurity http, ObjectMapper objectMapper) throws Exception {
+    SecurityFilterChain authSecurityFilterChain(HttpSecurity http, ObjectMapper objectMapper,
+            ObjectProvider<AuthSessionPolicy> policyProvider, Environment environment) throws Exception {
+        var csrf = new HttpSessionCsrfTokenRepository();
+        csrf.setSessionAttributeName("PARKING_CSRF");
+        var policy = policyProvider.getIfAvailable();
         http
-                .csrf(withDefaults())
+                .csrf(config -> config.csrfTokenRepository(csrf))
                 .requestCache(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session
@@ -55,8 +65,11 @@ public class AuthWebSecurityConfiguration {
                         .loginProcessingUrl("/api/auth/login")
                         .usernameParameter("email")
                         .passwordParameter("password")
-                        .successHandler((request, response, authentication) -> writeJson(objectMapper, response, 200,
-                                AuthUserResponse.fromPrincipal((ParkingUserPrincipal) authentication.getPrincipal())))
+                        .successHandler((request, response, authentication) -> {
+                            if (policy != null) { policy.initialize(request.getSession()); }
+                            writeJson(objectMapper, response, 200,
+                                AuthUserResponse.fromPrincipal((ParkingUserPrincipal) authentication.getPrincipal()));
+                        })
                         .failureHandler((request, response, exception) -> {
                             if (exception instanceof AuthenticationServiceException) {
                                 writeJson(objectMapper, response, 503,
@@ -76,6 +89,11 @@ public class AuthWebSecurityConfiguration {
                             response.setStatus(HttpServletResponse.SC_NO_CONTENT);
                         }));
 
+        if (policy != null) { http.addFilterAfter(policy, AnonymousAuthenticationFilter.class); }
+        http.addFilterBefore(new AuthLoginThrottle(Clock.systemUTC(),
+                environment.getProperty("parking.auth.login-account-limit", Integer.class, 10),
+                environment.getProperty("parking.auth.login-address-limit", Integer.class, 50), objectMapper),
+                UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 

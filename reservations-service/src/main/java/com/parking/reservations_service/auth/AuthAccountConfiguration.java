@@ -13,7 +13,7 @@ import java.util.Map;
 
 // Ne pas activer avant l'approbation et l'application du schema des comptes.
 @Configuration(proxyBeanMethods = false)
-@Profile("auth")
+@Profile({"auth", "provision"})
 public class AuthAccountConfiguration {
 
     @Bean

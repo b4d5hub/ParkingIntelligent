@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(AuthController.class)
+@WebMvcTest(value = AuthController.class, properties = "parking.auth.login-account-limit=1000")
 @ActiveProfiles("auth")
 @Import({AuthAccountConfiguration.class, AuthWebSecurityConfiguration.class})
 class AuthHttpFlowTests {
