@@ -27,14 +27,8 @@ public class TarifService {
 
     // ── Constantes ────────────────────────────────────────────────────────────
 
-    private static final BigDecimal SOIXANTE = new BigDecimal("60");
-    private static final BigDecimal CENT     = new BigDecimal("100");
-
-    /**
-     * Précision intermédiaire pour les divisions afin d'éviter toute perte
-     * de précision avant l'arrondi final à 2 décimales.
-     */
-    private static final int PRECISION_INTERMEDIAIRE = 10;
+    private static final BigDecimal CENT               = new BigDecimal("100");
+    private static final BigDecimal SOIXANTE_FOIS_CENT = new BigDecimal("6000");
 
     // ── Dépendances ───────────────────────────────────────────────────────────
 
@@ -104,15 +98,20 @@ public class TarifService {
      *                                  ou si creePar est nul ou vide
      */
     public void modifierTarifHoraire(BigDecimal nouveauPrix, String creePar) {
-        if (nouveauPrix == null || nouveauPrix.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException(
-                    "Le tarif horaire doit être strictement positif (reçu : " + nouveauPrix + ").");
+        if (nouveauPrix == null) {
+            throw new IllegalArgumentException("Le tarif horaire ne peut pas être nul.");
         }
         if (creePar == null || creePar.trim().isEmpty()) {
             throw new IllegalArgumentException(
                     "L'auteur de la modification (creePar) ne peut pas être vide.");
         }
-        repository.enregistrerNouveauTarif(nouveauPrix.setScale(2, RoundingMode.HALF_UP), creePar.trim());
+        BigDecimal prixArrondi = nouveauPrix.setScale(2, RoundingMode.HALF_UP);
+        if (prixArrondi.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException(
+                    "Le tarif horaire après arrondi à 2 décimales doit être strictement positif (reçu : "
+                            + nouveauPrix + ", arrondi : " + prixArrondi + ").");
+        }
+        repository.enregistrerNouveauTarif(prixArrondi, creePar.trim());
     }
 
     /**
@@ -132,18 +131,13 @@ public class TarifService {
 
         BigDecimal tarifHoraire = consulterTarifHoraire();
 
-        // montantBrut = (minutes / 60) × tarifHoraire
-        BigDecimal montantBrut = dureeMinutes
-                .divide(SOIXANTE, PRECISION_INTERMEDIAIRE, RoundingMode.HALF_UP)
-                .multiply(tarifHoraire);
+        // Calcul direct avec un seul arrondi final à 2 décimales (HALF_UP) :
+        // numérateur = minutes × tarifHoraire × (100 − réduction)
+        // dénominateur = 60 × 100 = 6000
+        BigDecimal facteur = CENT.subtract(reductionPourcent);
+        BigDecimal numerateur = dureeMinutes.multiply(tarifHoraire).multiply(facteur);
 
-        // facteurReduction = 1 − (réduction / 100)
-        BigDecimal facteurReduction = BigDecimal.ONE.subtract(
-                reductionPourcent.divide(CENT, PRECISION_INTERMEDIAIRE, RoundingMode.HALF_UP));
-
-        return montantBrut
-                .multiply(facteurReduction)
-                .setScale(2, RoundingMode.HALF_UP);
+        return numerateur.divide(SOIXANTE_FOIS_CENT, 2, RoundingMode.HALF_UP);
     }
 
     private void validerDates(OffsetDateTime debut, OffsetDateTime fin) {

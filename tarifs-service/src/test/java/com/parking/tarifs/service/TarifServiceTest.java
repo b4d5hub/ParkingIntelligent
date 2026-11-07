@@ -266,4 +266,40 @@ class TarifServiceTest {
                 () -> service.modifierTarifHoraire(new BigDecimal("15"), "   "),
                 "Un auteur vide doit déclencher IllegalArgumentException");
     }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // CORRECTIONS D'ARRONDI ET DE VALIDATION DE PRIX
+    // ══════════════════════════════════════════════════════════════════════════
+
+    @Test
+    @DisplayName("Arrondi précis : 2 minutes à 10,05 DH/h sans réduction doit donner 0,34 DH (pas 0,33 DH)")
+    void montantEstime_deuxMinutesDixZeroCinq_retourne034DH() {
+        // (2 min × 10,05 DH/h) / 60 = 20,10 / 60 = 0,335 DH
+        // Arrondi HALF_UP à 2 décimales sur 0,335 = 0,34 DH
+        TarifRepository repo = new InMemoryTarifRepository(new BigDecimal("10.05"));
+        TarifService serviceDixZeroCinq = new TarifService(repo);
+
+        OffsetDateTime debut = OffsetDateTime.of(2026, 11, 7, 9, 0, 0, 0, OFFSET_HEURE);
+        OffsetDateTime fin   = OffsetDateTime.of(2026, 11, 7, 9, 2, 0, 0, OFFSET_HEURE);
+
+        BigDecimal resultat = serviceDixZeroCinq.calculerMontantEstime(debut, fin, BigDecimal.ZERO);
+
+        assertEquals(new BigDecimal("0.34"), resultat,
+                "2 minutes à 10,05 DH/h doit s'arrondir à 0,34 DH (HALF_UP sur 0,335)");
+    }
+
+    @Test
+    @DisplayName("Validation après arrondi : 0.004 s'arrondit à 0.00 et doit lever IllegalArgumentException sans appeler le repository")
+    void modifierTarifHoraire_prixArrondiANul_leveIllegalArgumentExceptionEtNAppellePasRepo() {
+        TarifRepository mockRepo = Mockito.mock(TarifRepository.class);
+        TarifService serviceAvecMock = new TarifService(mockRepo);
+
+        // 0.004 est strictement positif avant arrondi, mais s'arrondit à 0.00 à 2 décimales
+        assertThrows(IllegalArgumentException.class,
+                () -> serviceAvecMock.modifierTarifHoraire(new BigDecimal("0.004"), "admin-1"),
+                "Un tarif qui s'arrondit à 0,00 doit être rejeté");
+
+        // Vérification formelle que le repository n'a jamais été appelé
+        Mockito.verifyNoInteractions(mockRepo);
+    }
 }
