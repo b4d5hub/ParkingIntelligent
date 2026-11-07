@@ -4,10 +4,13 @@ import com.parking.places_service.entity.Place;
 import com.parking.places_service.entity.Statut;
 import com.parking.places_service.repository.PlaceRepository;
 import com.parking.places_service.service.OccupationService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+@Tag(name = "Interne (service Réservations)")
 @RestController
 @RequestMapping("/internal/places")
 public class InternalPlaceController {
@@ -26,6 +29,7 @@ public class InternalPlaceController {
         this.occupation = occupation;
     }
 
+    @Operation(summary = "État d'une place : en service et occupée ou non")
     @GetMapping("/{id}")
     public PlaceView get(@PathVariable long id) {
         Place place = places.findById(id)
@@ -36,6 +40,7 @@ public class InternalPlaceController {
                 place.getStatut() == Statut.OCCUPEE);
     }
 
+    @Operation(summary = "Occuper une place à l'arrivée (idempotent grâce à Idempotency-Key)")
     @PostMapping("/{id}/occupy")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void occupy(@PathVariable long id,
@@ -44,6 +49,7 @@ public class InternalPlaceController {
         occupation.occupy(id, reservationId(body), checkKey(key));
     }
 
+    @Operation(summary = "Libérer une place au départ (idempotent grâce à Idempotency-Key)")
     @PostMapping("/{id}/release")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void release(@PathVariable long id,
