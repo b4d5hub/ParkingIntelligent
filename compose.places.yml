@@ -9,6 +9,9 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD dans .env}
       PLACES_API_USER: ${PLACES_API_USER:?Definir PLACES_API_USER dans .env}
       PLACES_API_PASSWORD: ${PLACES_API_PASSWORD:?Definir PLACES_API_PASSWORD dans .env}
+      AUTH_API_URL: ${AUTH_API_URL:-http://reservations:8081}
+      AUTH_PLACES_USER: ${AUTH_PLACES_USER:?Definir AUTH_PLACES_USER dans .env}
+      AUTH_PLACES_PASSWORD: ${AUTH_PLACES_PASSWORD:?Definir AUTH_PLACES_PASSWORD dans .env}
     ports: ["127.0.0.1:8082:8082"]
     depends_on:
       db: {condition: service_healthy}
