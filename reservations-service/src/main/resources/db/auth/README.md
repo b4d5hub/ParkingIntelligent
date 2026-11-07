@@ -1,58 +1,15 @@
-# Scripts proposes pour l'authentification
+# Schéma d'authentification
 
-Ces scripts sont prepares pour revue uniquement. Ils n'ont pas ete appliques a PostgreSQL. Ils ne sont pas executes au demarrage : leurs noms ne sont pas ceux des scripts automatiques Spring Boot et aucun outil de migration n'est ajoute.
+`001_accounts.sql` crée les comptes et les rôles. `002_sessions.sql` reprend le schéma PostgreSQL de Spring Session JDBC 4.1.1, avec une enveloppe transactionnelle. Les tables sont dans `public`.
 
-## Contenu a relire
+Les scripts ont été exécutés avec succès dans une base de test temporaire. Ils n'ont pas été appliqués à `parking-db`. Aucun compte initial ni mot de passe n'est inclus.
 
-- `001_accounts.sql` propose `public.parking_auth_users` et `public.parking_auth_user_roles`. L'email est unique sans distinction de casse. Les comptes sont desactives par defaut ; le provisionnement devra definir explicitement leur activation et leurs roles.
-- `002_sessions.sql` reprend les instructions du script PostgreSQL fourni dans le JAR `spring-session-jdbc` 4.1.1 resolu par le POM. Les tables restent `public.spring_session` et `public.spring_session_attributes`, noms standard du composant. Les noms majuscules du script, sans guillemets, sont convertis en minuscules par PostgreSQL.
+Sur une base existante, vérifier les tables et sauvegarder avant application. Exécuter chaque script une fois seulement. L'absence de `IF NOT EXISTS` permet de détecter un conflit de structure. Ne jamais supprimer les données ou volumes pour résoudre ce conflit.
 
-Chaque fichier utilise une transaction et fixe son `search_path` a `public`. Aucun `DROP`, aucune modification de `reservations`, aucun compte initial ni mot de passe en clair. Les empreintes des mots de passe devront etre produites par le PasswordEncoder, jamais par une fonction SQL artisanale.
+Spring ne crée aucune table automatiquement. Le profil `auth` active explicitement `@EnableJdbcHttpSession` et nécessite les deux scripts. Hibernate reste en `ddl-auto=validate` pour les entités de réservation. Les comptes et sessions utilisent JDBC.
 
-L'absence de `IF NOT EXISTS` est volontaire : une table deja presente doit provoquer une verification de sa structure, pas masquer un conflit.
+Compose monte ces scripts dans l'initialisation PostgreSQL pour une installation neuve seulement. Une base déjà initialisée ne rejoue pas ce dossier : appliquer les migrations manuellement, sans recréer son volume.
 
-## Decisions avant application
+Le lien entre l'identité commune et les données des autres modules doit être confirmé avec l'équipe. Aucun FK vers les tables d'Abonnements/Places n'est inventé. Les clients machines sont configurés hors Git ; ils n'ont pas besoin d'une table supplémentaire.
 
-Confirmer avec l'equipe la responsabilite des tables, leurs noms, le lien entre `parking_auth_users.id` et `reservations.conducteur_id`, ainsi que les droits des comptes PostgreSQL. Aucun lien SQL avec les reservations n'est ajoute avant cette confirmation. Les tables de clients machines pour les appels interservices seront preparees dans une etape distincte.
-
-Verifier d'abord les tables et donnees deja presentes. Appliquer chaque fichier une seule fois, dans l'ordre numerique, seulement apres autorisation explicite. Ne pas lancer ces scripts contre une base inconnue ou pour contourner une erreur de demarrage.
-
-## Etat des dependances
-
-Le POM ajoute `spring-boot-starter-security`, `spring-session-jdbc` et `spring-boot-starter-security-test` avec les versions gerees par Spring Boot 4.1.2. Il ne change pas la version de Java ou de Spring Boot et ne retire pas les dependances existantes.
-
-Le starter Security active la protection par defaut lors d'un nouveau demarrage. Les endpoints, y compris le health endpoint, demandent alors une authentification ; ce comportement n'est pas encore le contrat login/session de `AUTHENTICATION.md`. Le compte genere automatiquement par Spring n'est pas un compte utilisateur du projet et ne doit pas servir en production.
-
-Le module JDBC est ajoute directement, sans starter Session Boot et sans `@EnableJdbcHttpSession`. Selon le fonctionnement de [Spring Boot 4.1](https://docs.spring.io/spring-boot/reference/web/spring-session.html), son integration HTTP reste a configurer explicitement. Les tables JDBC ne sont donc pas supposees disponibles et aucun stockage persistant de session n'est encore actif.
-
-Apres approbation et application du schema, choisir une seule configuration de session JDBC, avec le cookie et les controles definis dans le document commun. Si le starter Session est retenu a cette etape, utiliser `spring.session.jdbc.initialize-schema=never` pour garder la creation des tables explicite. Conserver `spring.jpa.hibernate.ddl-auto=validate`.
-
-## Verification de cette etape
-
-Les tests MVC utilisent un utilisateur simule pour verifier les reponses du controleur avec les filtres de securite actifs. Un test distinct refuse les appels anonymes. Ils n'utilisent pas PostgreSQL et ne prouvent pas encore le fonctionnement de la connexion, des roles metier, de la propriete des reservations ou des sessions JDBC.
-
-Resultat du 6 novembre 2026 avec Java 21 : compilation reussie et sept tests MVC reussis, sans echec ni erreur.
-
-La syntaxe et les contraintes des scripts n'ont pas ete executees dans PostgreSQL. Le schema de session peut etre compare au script du JAR installe, mais seule une execution autorisee permettra de valider les deux fichiers dans la base cible.
-
-Sources : [securite Spring Boot](https://docs.spring.io/spring-boot/reference/web/spring-security.html), [stockage JDBC Spring Session](https://docs.spring.io/spring-session/reference/configuration/jdbc.html).
-
-## Couche des comptes preparee
-
-La recherche JDBC des comptes et l'adaptation Spring Security se trouvent dans le package `auth`. Leur configuration exige explicitement le profil `auth`, qui reste inactif. Les scripts ne sont toujours pas appliques et la recherche reelle dans PostgreSQL n'a pas ete testee.
-
-L'encodeur Argon2id utilise Bouncy Castle `bcprov-jdk18on` 1.86, ajoute en dependance d'execution avec une version explicite. Les comptes devront recevoir une empreinte produite par cet encodeur, avec le prefixe `{argon2}` ; ne pas creer une empreinte manuellement ou stocker du texte clair.
-
-Ne pas activer le profil `auth` avant revue et application du script des comptes. Le parcours HTTP decrit ci-dessous prepare maintenant les endpoints communs `/api/auth/**`. La protection du proprietaire et les sessions JDBC restent a implementer. Les tests simulent le stockage : ils ne valident pas le schema PostgreSQL.
-
-Verification du 6 novembre 2026 : compilation Java 21 et vingt tests cibles reussis, dont treize nouveaux tests de la couche des comptes et les sept tests MVC existants. Aucun acces a PostgreSQL, aucune application des scripts.
-
-## Parcours HTTP prepare
-
-Le profil `auth` fournit maintenant CSRF, login, me et logout sous `/api/auth`. La connexion et la deconnexion utilisent les filtres Spring et des reponses JSON. Les autres routes sont refusees en attendant les droits metier et les controles de proprietaire.
-
-`application-auth.properties` prepare le cookie `PARKING_SESSION` avec `HttpOnly`, `Secure` et `SameSite=Lax`, une ecoute sur loopback, et un delai d'inactivite de 30 minutes. Il faudra HTTPS pour tester normalement ce cookie dans le navigateur. Aucun serveur HTTPS ni exception HTTP locale n'a ete ajoute.
-
-Les sessions restent en memoire ; ni JDBC, ni expiration absolue, ni revocation des anciennes sessions apres modification d'un compte, ni limitation des essais n'ont ete ajoutes. Le parcours n'est pas encore pret pour un deploiement en ligne.
-
-Resultat du 6 novembre 2026 : compilation Java 21 et 34 tests cibles reussis, dont 14 tests HTTP d'authentification et les 20 tests precedents. Ils utilisent MockMvc et un stockage simule, sans connexion a PostgreSQL ni execution des scripts. Les cookies du vrai serveur et le navigateur restent a verifier.
+Voir [AUTHENTICATION.md](../../../../../../AUTHENTICATION.md) pour la connexion, CSRF, la validation interne, les durées de session et le provisionnement local. Voir [RESERVATIONS.md](../../../../../../RESERVATIONS.md) pour l'exécution et les tests.

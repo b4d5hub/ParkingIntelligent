@@ -100,4 +100,18 @@ class ReservationPostgresTests {
         assertEquals(0, jdbc.queryForObject("select count(*) from reservation_place_commands where reservation_id = ? and operation = 'RELEASE'", Integer.class, id));
         commands.dispatchBatch();
     }
+    @Test void nextArrivalWaitsForEarlierPlacesCommandsEvenIfThePartnerStillReportsFree() {
+        var start = OffsetDateTime.now().plusHours(2);
+        long first = Long.parseLong(service.create(42L, request(start, start.plusHours(1)), UUID.randomUUID()).id());
+        jdbc.update("update reservations set debut_prevu=current_timestamp-interval '10 minutes', fin_prevue=current_timestamp+interval '1 hour' where id=?", first);
+        service.arrive(first); service.depart(first);
+        long second = Long.parseLong(service.create(43L, request(start, start.plusHours(1)), UUID.randomUUID()).id());
+        jdbc.update("update reservations set debut_prevu=current_timestamp-interval '1 minute', fin_prevue=current_timestamp+interval '1 hour' where id=?", second);
+        assertEquals(409, assertThrows(ReservationFailure.class, () -> service.arrive(second)).status().value());
+        commands.dispatchBatch();
+        assertEquals("IN_PROGRESS", service.arrive(second).statut().name());
+        assertEquals("IN_PROGRESS", service.arrive(second).statut().name());
+        assertEquals(1, jdbc.queryForObject("select count(*) from reservation_place_commands where reservation_id=?", Integer.class, second));
+        commands.dispatchBatch();
+    }
 }

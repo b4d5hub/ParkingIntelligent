@@ -6,7 +6,7 @@ public interface ParkingGateway {
     Quote estimate(PriceRequest request);
     Quote finalAmount(PriceRequest request);
     void changeOccupancy(long placeId, long reservationId, String operation, String operationKey);
-    record Place(String id, boolean enService, boolean occupee) { }
+    record Place(String id, Boolean enService, Boolean occupee) { }
     record Quote(BigDecimal amount, String currency, String reference) { }
     record PriceRequest(String conducteurId, String placeId, String typeVehicule,
         OffsetDateTime debutPrevu, OffsetDateTime finPrevue, OffsetDateTime arriveeReelle,

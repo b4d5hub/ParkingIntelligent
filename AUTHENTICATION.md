@@ -47,7 +47,7 @@ Ces limites doivent être levées avant une utilisation réelle en ligne. Les ch
 
 ## Vérification actuelle
 
-Les tests couvrent les bons/mauvais mots de passe, comptes absents/désactivés/sans rôle, panne de stockage, effacement des credentials, CSRF, renouvellement de session, login/logout et droits des réservations. Huit tests HTTP supplémentaires utilisent PostgreSQL réel : persistance et rotation, logout, révocation, deux expirations, limitation des essais et validation interne avec CSRF. Le total vérifié est de 75 tests réussis sur base temporaire. Cela ne prouve pas encore l'intégration de l'authentification dans les trois autres modules.
+Les tests couvrent les bons/mauvais mots de passe, comptes absents/désactivés/sans rôle, panne de stockage, effacement des credentials, CSRF, renouvellement de session, login/logout et droits des réservations. Huit tests HTTP supplémentaires utilisent PostgreSQL réel : persistance et rotation, logout, révocation, deux expirations, limitation des essais et validation interne avec CSRF. Le total final vérifié est de 82 tests Java réussis sur base temporaire, complétés par cinq tests JavaScript et les parcours navigateur décrits dans RESERVATIONS.md. Cela ne prouve pas encore l'intégration de l'authentification dans les trois autres modules.
 
 Voir [RESERVATIONS.md](RESERVATIONS.md) pour les règles métier, migrations, contrats partenaires et tests PostgreSQL du module.
 
@@ -61,4 +61,4 @@ Après les migrations et le packaging Maven, un opérateur peut créer un compte
 java -jar reservations-service/target/reservations-service-0.0.1-SNAPSHOT.jar --spring.profiles.active=provision --spring.main.web-application-type=none
 ```
 
-Fournir DB_URL, DB_USER et DB_PASSWORD dans l'environnement, sans les afficher ni les versionner. Le programme demande email, nom, rôles et une phrase de passe de 15 à 128 caractères, masquée et confirmée. Il crée le compte et ses rôles dans une transaction puis s'arrête. Aucun compte n'est créé automatiquement. Ne pas activer `auth` en même temps que `provision`. La procédure n'a pas été utilisée sur les données de l'utilisateur. Avant une ouverture publique, ajouter un contrôle de mots de passe compromis, une récupération de compte et MFA pour les comptes privilégiés.
+Fournir DB_URL, DB_USER et DB_PASSWORD dans l'environnement, sans les afficher ni les versionner. Le programme demande email, nom, rôles et une phrase de passe de 15 à 128 caractères, masquée et confirmée. Il crée le compte et ses rôles dans une transaction puis s'arrête. Aucun compte n'est créé automatiquement. Ne pas activer `auth` en même temps que `provision`. La procédure a été vérifiée avec un compte synthétique dans l'installation de test temporaire ; aucun compte n'a été créé dans la base de l'utilisateur. Avant une ouverture publique, ajouter un contrôle de mots de passe compromis, une récupération de compte et MFA pour les comptes privilégiés.

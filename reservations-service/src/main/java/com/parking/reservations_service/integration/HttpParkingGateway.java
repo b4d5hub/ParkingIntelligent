@@ -10,11 +10,16 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.concurrent.ConcurrentHashMap;
 @Component
 public class HttpParkingGateway implements ParkingGateway {
     private final Environment environment;
+    private final Map<String, RestClient> clients = new ConcurrentHashMap<>();
     public HttpParkingGateway(Environment environment) { this.environment = environment; }
     private RestClient client(String service) {
+        return clients.computeIfAbsent(service, this::createClient);
+    }
+    private RestClient createClient(String service) {
         String base = environment.getProperty("parking." + service + ".url", "");
         String user = environment.getProperty("parking." + service + ".user", "");
         String password = environment.getProperty("parking." + service + ".password", "");
@@ -47,7 +52,9 @@ public class HttpParkingGateway implements ParkingGateway {
     }
     public Place place(long id) {
         Place result = call(() -> client("places").get().uri("/internal/places/{id}", id).retrieve().body(Place.class));
-        if (result == null || !Long.toString(id).equals(result.id())) { throw new ReservationFailure(HttpStatus.BAD_GATEWAY, "INVALID_PARTNER_RESPONSE", "Réponse Places invalide"); }
+        if (result == null || !Long.toString(id).equals(result.id()) || result.enService() == null || result.occupee() == null) {
+            throw new ReservationFailure(HttpStatus.BAD_GATEWAY, "INVALID_PARTNER_RESPONSE", "Réponse Places invalide");
+        }
         return result;
     }
     public Quote estimate(PriceRequest request) { return call(() -> client("tarifs").post().uri("/internal/tarifs/estimate").body(request).retrieve().body(Quote.class)); }
