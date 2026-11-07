@@ -44,10 +44,11 @@ class ReservationWorkflowTests {
         when(repository.findPlaceId(1L)).thenReturn(Optional.of(20L));
         return reservation;
     }
-    @Test void createsWithServerIdentityAndNoBookingPayment() {
+    @Test void createsWithServerIdentityAndBookingPayment() {
         var response = service.create(42L, request, key);
         assertEquals("42", response.conducteurId()); assertEquals("CONFIRMED", response.statut().name());
-        assertEquals("NOT_DUE", response.paymentStatus()); assertNull(response.paymentReference());
+        assertEquals("PAID", response.paymentStatus()); assertTrue(response.paymentReference().startsWith("SIM-"));
+        assertEquals(new BigDecimal("15.00"), response.bookingPaid());
         assertEquals(new BigDecimal("15.00"), response.montantEstime());
         var order = inOrder(commands, repository);
         order.verify(commands).lockPlace(20L);
@@ -168,12 +169,73 @@ class ReservationWorkflowTests {
         assertEquals(0, service.expireNoShows());
         assertEquals(ReservationStatus.IN_PROGRESS, reservation.getStatut()); verifyNoInteractions(commands);
     }
-    @Test void noShowExpiresOnlyUnarrivedConfirmedReservations() {
+    @Test void paidSlotIsNeverExpiredEvenWithOldGraceConfiguration() {
         environment.setProperty("parking.no-show-grace", "PT15M");
         Reservation reservation = reservation(ReservationStatus.CONFIRMED);
         reservation.setDebutPrevu(now.minusMinutes(16));
         when(repository.findNoShowIds(any(), any())).thenReturn(List.of(1L));
-        assertEquals(1, service.expireNoShows()); assertEquals(ReservationStatus.EXPIRED, reservation.getStatut());
+        assertEquals(0, service.expireNoShows()); assertEquals(ReservationStatus.CONFIRMED, reservation.getStatut());
         verifyNoInteractions(commands);
+    }
+
+    Reservation prepaid() {
+        Reservation value = reservation(ReservationStatus.IN_PROGRESS);
+        value.setDebutPrevu(now.minusHours(2)); value.setFinPrevue(now.plusMinutes(1));
+        value.setArriveeReelle(now.minusMinutes(20)); value.setBookingPaid(new BigDecimal("15.00"));
+        value.setPaymentStatus("PAID"); value.setPaymentReference("SIM-booking");
+        return value;
+    }
+    @Test void earlyDepartureKeepsFullBookingPaymentWithoutCallingTariffs() {
+        prepaid(); var response = service.depart(1L);
+        assertEquals(new BigDecimal("15.00"), response.montantFinal());
+        assertEquals(new BigDecimal("0.00"), response.extraPaid());
+        assertEquals("SIM-booking", response.paymentReference());
+        assertNull(response.extraPaymentReference()); verifyNoInteractions(gateway);
+    }
+    @Test void departureExactlyAtPaidEndNeedsNoExtraPayment() {
+        prepaid().setFinPrevue(now);
+        assertEquals(new BigDecimal("0.00"), service.depart(1L).extraPaid());
+        verifyNoInteractions(gateway);
+    }
+    @Test void overstayBillsOnlyTimeAfterPaidEndAndReplayDoesNotChargeAgain() {
+        prepaid().setFinPrevue(now.minusMinutes(10));
+        var response = service.depart(1L);
+        var capture = ArgumentCaptor.forClass(ParkingGateway.PriceRequest.class);
+        verify(gateway).finalAmount(capture.capture());
+        assertEquals(now.minusMinutes(10), capture.getValue().arriveeReelle());
+        assertEquals(now.minusMinutes(10), capture.getValue().debutPrevu());
+        assertEquals(now, capture.getValue().departReel()); assertNull(capture.getValue().quoteReference());
+        assertFalse(capture.getValue().overstayPenalty());
+        assertEquals(new BigDecimal("27.50"), response.montantFinal());
+        assertEquals(new BigDecimal("12.50"), response.extraPaid());
+        assertEquals("SIM-booking", response.paymentReference());
+        assertTrue(response.extraPaymentReference().startsWith("SIM-"));
+        clearInvocations(gateway, commands);
+        assertEquals(response.extraPaymentReference(), service.depart(1L).extraPaymentReference());
+        verifyNoInteractions(gateway, commands);
+    }
+    @Test void cancellationKeepsBookingPaymentWithoutRefund() {
+        Reservation value = prepaid(); value.setStatut(ReservationStatus.CONFIRMED);
+        value.setDebutPrevu(now.plusHours(1));
+        var response = service.cancel(42L, 1L);
+        assertEquals(new BigDecimal("15.00"), response.bookingPaid());
+        assertEquals("PAID", response.paymentStatus()); assertEquals("SIM-booking", response.paymentReference());
+        verifyNoInteractions(gateway);
+    }
+    @Test void lateArrivalKeepsPaidSlotDespiteOldGraceSetting() {
+        Reservation value = prepaid(); value.setStatut(ReservationStatus.CONFIRMED); value.setArriveeReelle(null);
+        environment.setProperty("parking.no-show-grace", "PT15M");
+        assertEquals(now, service.arrive(1L).arriveeReelle());
+    }
+    @Test void arrivalAtOrAfterSlotEndIsRefused() {
+        Reservation value = prepaid(); value.setStatut(ReservationStatus.CONFIRMED); value.setFinPrevue(now);
+        assertThrows(ReservationFailure.class, () -> service.arrive(1L));
+    }
+    @Test void overstayCurrencyMismatchKeepsBookingPaymentAndActiveStay() {
+        Reservation value = prepaid(); value.setFinPrevue(now.minusMinutes(1));
+        when(gateway.finalAmount(any())).thenReturn(new ParkingGateway.Quote(new BigDecimal("5.00"), "EUR", "bad"));
+        assertThrows(ReservationFailure.class, () -> service.depart(1L));
+        assertEquals(ReservationStatus.IN_PROGRESS, value.getStatut()); assertNull(value.getExtraPaid());
+        assertEquals("SIM-booking", value.getPaymentReference()); verifyNoInteractions(commands);
     }
 }

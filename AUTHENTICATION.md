@@ -29,6 +29,8 @@ Les routes navigateur exigent les rôles : conducteur pour devis/création/consu
 
 ## Intégration à réaliser avec l'équipe
 
+Codes réels du contrat de validation interne : `401 INVALID_SERVICE_CREDENTIALS` signifie que les identifiants machine sont invalides ; `401 AUTHENTICATION_REQUIRED` signifie que la session utilisateur est absente, expirée ou révoquée ; `403 CSRF_INVALID` refuse un jeton utilisateur absent ou invalide ; `503 AUTHENTICATION_UNAVAILABLE` indique une panne de stockage lors de la validation. Un appelant doit distinguer son erreur de configuration machine d'une session utilisateur expirée. Les codes `SERVICE_AUTHENTICATION_FAILED` et `SERVICE_FORBIDDEN` ne sont pas ceux renvoyés par ce contrat.
+
 Le frontend/Nginx commun doit transmettre `/api/auth/**` et `/api/reservations/**` à Réservations, puis chaque autre préfixe au service concerné. Ne jamais publier `/internal/**`. Aucune technologie ni aucun port n'est imposé aux trois autres modules.
 
 Contrat implémenté côté Réservations, à confirmer et intégrer avec Places, Tarifs et Abonnements : `POST /internal/auth/validate-user-request`, avec authentification machine distincte par service (HTTP Basic sur TLS), sans session machine. Corps proposé : `sessionCookie`, `httpMethod`, `csrfToken`. Le middleware extrait ces valeurs de la vraie requête HTTP ; il ne prend pas une identité dans le JSON métier.

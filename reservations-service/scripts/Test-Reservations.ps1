@@ -21,7 +21,7 @@ try {
         Start-Sleep -Milliseconds 500
     }
     if (-not $ready) { throw 'PostgreSQL de test ne démarre pas.' }
-    foreach ($script in @('reservations.sql', '003_reservation_workflow.sql', 'auth/001_accounts.sql', 'auth/002_sessions.sql')) {
+    foreach ($script in @('reservations.sql', '003_reservation_workflow.sql', '004_booking_payment.sql', 'auth/001_accounts.sql', 'auth/002_sessions.sql')) {
         Get-Content -LiteralPath "$serviceRoot/src/main/resources/db/$script" | & docker exec -i $containerName psql -v ON_ERROR_STOP=1 -U parking_test -d parking_test
         if ($LASTEXITCODE -ne 0) { throw "Échec du script $script" }
     }

@@ -56,3 +56,55 @@ test('login is form encoded and logout accepts a 204 response', async () => {
   assert.equal(calls[1].options.headers['Content-Type'], 'application/x-www-form-urlencoded');
   assert.equal(await api('/api/auth/logout', { method: 'POST' }), null);
 });
+
+test('a previous session response cannot expose its reservations after an account switch', async () => {
+  let finish;
+  globalThis.fetch = () => new Promise(resolve => { finish = resolve; });
+  const { api, resetSession } = await client();
+  const pending = api('/api/reservations/me');
+  resetSession();
+  finish(response(200, { items: [{ conducteurId: 'old-driver' }] }));
+  await assert.rejects(pending, error => error.constructor.name === 'StaleSessionError');
+});
+
+test('a delayed 401 from a previous session is discarded instead of logging out the new account', async () => {
+  let finish;
+  globalThis.fetch = () => new Promise(resolve => { finish = resolve; });
+  const { api, resetSession } = await client();
+  const pending = api('/api/reservations/me'); resetSession();
+  finish(response(401, { code: 'SESSION_REVOKED' }));
+  await assert.rejects(pending, error => error.constructor.name === 'StaleSessionError');
+});
+
+test('changing session while the response body loads also discards the response', async () => {
+  let finishBody;
+  globalThis.fetch = async () => ({ status: 200, ok: true, json: () => new Promise(resolve => { finishBody = resolve; }) });
+  const { api, resetSession } = await client();
+  const pending = api('/api/reservations/me');
+  await new Promise(resolve => setImmediate(resolve)); resetSession(); finishBody({ items: [] });
+  await assert.rejects(pending, error => error.constructor.name === 'StaleSessionError');
+});
+
+test('an old CSRF response cannot overwrite the token of a new session', async () => {
+  let finishOld;
+  globalThis.fetch = () => new Promise(resolve => { finishOld = resolve; });
+  const { api, renewCsrf, resetSession } = await client();
+  const pending = renewCsrf(); resetSession();
+  let sentToken;
+  globalThis.fetch = async (path, options) => {
+    if (path.endsWith('/csrf')) return response(200, { headerName: 'X-CSRF-TOKEN', token: 'new-token' });
+    sentToken = options.headers['X-CSRF-TOKEN']; return response(204, null);
+  };
+  await renewCsrf();
+  finishOld(response(200, { headerName: 'X-CSRF-TOKEN', token: 'old-token' }));
+  await assert.rejects(pending, error => error.constructor.name === 'StaleSessionError');
+  await api('/api/auth/logout', { method: 'POST' }); assert.equal(sentToken, 'new-token');
+});
+
+test('network failure from an earlier session is ignored as stale', async () => {
+  let fail;
+  globalThis.fetch = () => new Promise((resolve, reject) => { fail = reject; });
+  const { api, resetSession } = await client();
+  const pending = api('/api/reservations/me'); resetSession(); fail(new TypeError('network'));
+  await assert.rejects(pending, error => error.constructor.name === 'StaleSessionError');
+});

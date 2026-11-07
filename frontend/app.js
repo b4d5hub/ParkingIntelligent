@@ -1,7 +1,9 @@
-import { api, renewCsrf } from './api.js';
+import { api, renewCsrf, resetSession } from './api.js';
+import { sessionRevision, isCurrentSession, assertCurrentSession, StaleSessionError } from './session.js';
 const $ = id => document.getElementById(id);
 let user, mode, bookingAttempt;
 const pages = { driver: 0, agent: 0 };
+const activeActions = new WeakMap();
 const statusNames = { CONFIRMED: 'Confirmée', IN_PROGRESS: 'En cours', COMPLETED: 'Terminée', CANCELLED: 'Annulée', EXPIRED: 'Expirée' };
 const date = value => value ? new Date(value).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
 function money(amount, currency) {
@@ -10,12 +12,22 @@ function money(amount, currency) {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency }).format(amount);
 }
 function notice(message = '', error = false) { $('notice').textContent = message; $('notice').classList.toggle('error', error); $('notice').hidden = !message; }
-function signedOut() { user = null; bookingAttempt = null; $('workspace').hidden = true; $('identity').hidden = true; $('login-panel').hidden = false; $('driver-list').replaceChildren(); $('agent-list').replaceChildren(); }
+function signedOut() {
+  resetSession(); user = null; bookingAttempt = null; pages.driver = 0; pages.agent = 0;
+  $('workspace').hidden = true; $('identity').hidden = true; $('login-panel').hidden = false;
+  $('driver-list').replaceChildren(); $('agent-list').replaceChildren(); $('display-name').textContent = '';
+  $('booking-form').reset(); $('quote').textContent = ''; $('login-form').elements.password.value = '';
+  for (const button of document.querySelectorAll('button')) { activeActions.delete(button); button.disabled = false; }
+}
 async function action(button, task) {
+  const revision = sessionRevision(), operation = Symbol(); activeActions.set(button, operation);
   button.disabled = true; notice();
-  try { await task(); }
-  catch (error) { if (error.status === 401 && error.code !== 'INVALID_CREDENTIALS') signedOut(); notice(error.message, true); }
-  finally { button.disabled = false; }
+  try { await task(() => assertCurrentSession(revision)); }
+  catch (error) {
+    if (error instanceof StaleSessionError || !isCurrentSession(revision)) return;
+    if (error.status === 401 && error.code !== 'INVALID_CREDENTIALS') signedOut(); notice(error.message, true);
+  }
+  finally { if (activeActions.get(button) === operation) { activeActions.delete(button); button.disabled = false; } }
 }
 function node(tag, text, className) { const item = document.createElement(tag); item.textContent = text; if (className) item.className = className; return item; }
 function localDate(value) { const offset = value.getTimezoneOffset() * 60_000; return new Date(value.getTime() - offset).toISOString().slice(0, 16); }
@@ -47,6 +59,7 @@ async function show(selected) {
   await load(mode);
 }
 async function load(role) {
+  const revision = sessionRevision();
   let path = '/api/reservations/me?';
   const parameters = new URLSearchParams({ page: pages[role], size: 20 });
   if (role === 'agent') {
@@ -57,6 +70,7 @@ async function load(role) {
     parameters.set('start', start.toISOString()); parameters.set('end', end.toISOString()); path = '/api/reservations/operations?';
   }
   const result = await api(path + parameters);
+  assertCurrentSession(revision);
   const list = $(role + '-list'); list.replaceChildren();
   if (!result.items.length) list.append(node('p', 'Aucune réservation pour cette consultation.', 'muted'));
   for (const reservation of result.items) list.append(reservationCard(reservation, role));
@@ -71,6 +85,8 @@ function reservationCard(reservation, role) {
   card.append(node('p', `Estimation : ${money(reservation.montantEstime, reservation.currency)}${reservation.montantFinal !== null ? ' · Final : ' + money(reservation.montantFinal, reservation.currency) : ''}`, 'muted'));
   if (role === 'agent') card.append(node('p', `Conducteur ${reservation.conducteurId} · Arrivée : ${date(reservation.arriveeReelle)} · Départ : ${date(reservation.departReel)}`, 'muted'));
   if (reservation.paymentStatus === 'PAID') card.append(node('p', 'Paiement simulé enregistré · ' + reservation.paymentReference, 'muted'));
+  if (reservation.bookingPaid != null) card.append(node('p', `Créneau payé : ${money(reservation.bookingPaid, reservation.currency)} · Complément payé : ${reservation.extraPaid == null ? 'à calculer au départ' : money(reservation.extraPaid, reservation.currency)}`, 'muted'));
+  if (reservation.extraPaymentReference) card.append(node('p', 'Paiement complémentaire simulé : ' + reservation.extraPaymentReference, 'muted'));
   if (reservation.placesSyncPending) card.append(node('p', 'Mise à jour de la place en attente. Actualisez pour vérifier la synchronisation.', 'sync'));
   let operation, label;
   if (role === 'driver' && reservation.statut === 'CONFIRMED' && new Date(reservation.debutPrevu) > new Date()) { operation = 'cancel'; label = 'Annuler la réservation'; }
@@ -79,45 +95,50 @@ function reservationCard(reservation, role) {
   if (operation) {
     const button = node('button', label, 'secondary');
     button.addEventListener('click', () => {
-      if (operation === 'cancel' && !window.confirm('Annuler cette réservation ?')) return;
+      if (operation === 'cancel' && !window.confirm('Annuler cette réservation ? Le paiement reste acquis, sans remboursement.')) return;
       if (operation === 'departure' && !window.confirm('Confirmer le départ réel et le paiement simulé ?')) return;
-      action(button, async () => { await api(`/api/reservations/${encodeURIComponent(reservation.id)}/${operation}`, { method: 'POST' }); await load(role); notice('Opération enregistrée.'); });
+      action(button, async check => { await api(`/api/reservations/${encodeURIComponent(reservation.id)}/${operation}`, { method: 'POST' }); check(); await load(role); check(); notice('Opération enregistrée.'); });
     }); card.append(button);
   }
   return card;
 }
 $('login-form').addEventListener('submit', event => {
   event.preventDefault(); const form = event.currentTarget;
-  action(form.querySelector('button'), async () => {
-    try { const current = await api('/api/auth/login', { method: 'POST', body: new URLSearchParams(new FormData(form)) }); await renewCsrf(); await enter(current); }
-    finally { form.elements.password.value = ''; }
+  resetSession(); const revision = sessionRevision();
+  action(form.querySelector('button'), async check => {
+    try { const current = await api('/api/auth/login', { method: 'POST', body: new URLSearchParams(new FormData(form)) }); check(); await renewCsrf(); check(); await enter(current); }
+    finally { if (isCurrentSession(revision)) form.elements.password.value = ''; }
   });
 });
-$('logout').addEventListener('click', event => action(event.currentTarget, async () => { await api('/api/auth/logout', { method: 'POST' }); signedOut(); await renewCsrf(); }));
-$('estimate').addEventListener('click', event => action(event.currentTarget, async () => {
+$('logout').addEventListener('click', event => action(event.currentTarget, async check => { await api('/api/auth/logout', { method: 'POST' }); check(); signedOut(); await renewCsrf(); }));
+$('estimate').addEventListener('click', event => action(event.currentTarget, async check => {
   const body = bookingBody(); const query = new URLSearchParams({ placeId: body.placeId, start: body.debutPrevu, end: body.finPrevue });
   const availability = await api('/api/reservations/availability?' + query);
+  check();
   if (!availability.available) throw new Error('Cette place est indisponible sur ce créneau.');
   const quote = await api('/api/reservations/quote', { method: 'POST', body });
+  check();
   $('quote').textContent = `Estimation : ${money(quote.amount, quote.currency)}. Disponibilité à confirmer lors de la réservation.`;
 }));
 $('booking-form').addEventListener('input', () => { $('quote').textContent = 'Les paramètres ont changé. Vérifiez votre estimation.'; });
 $('booking-form').addEventListener('submit', event => {
-  event.preventDefault(); action(event.currentTarget.querySelector('[type=submit]'), async () => {
+  event.preventDefault(); action(event.currentTarget.querySelector('[type=submit]'), async check => {
     const body = bookingBody(), fingerprint = JSON.stringify(body);
     if (!bookingAttempt || bookingAttempt.fingerprint !== fingerprint) bookingAttempt = { fingerprint, key: crypto.randomUUID() };
     const reservation = await api('/api/reservations', { method: 'POST', body, headers: { 'Idempotency-Key': bookingAttempt.key } });
-    bookingAttempt = null; pages.driver = 0; await load('driver'); notice(`Réservation ${reservation.id} confirmée. Aucun paiement prélevé.`);
+    check(); bookingAttempt = null; pages.driver = 0; await load('driver'); check(); notice(`Réservation ${reservation.id} confirmée. Paiement du créneau simulé, sans remboursement.`);
   });
 });
 for (const role of ['driver', 'agent']) {
   $(role + '-tab').addEventListener('click', event => action(event.currentTarget, () => show(role)));
   for (const direction of ['previous', 'next']) $(direction + '-' + role).addEventListener('click', async () => {
+    const revision = sessionRevision();
     notice(); pages[role] += direction === 'next' ? 1 : -1;
-    try { await load(role); } catch (error) { pages[role] += direction === 'next' ? -1 : 1; if (error.status === 401) signedOut(); notice(error.message, true); }
+    try { await load(role); } catch (error) { if (error instanceof StaleSessionError || !isCurrentSession(revision)) return; pages[role] += direction === 'next' ? -1 : 1; if (error.status === 401) signedOut(); notice(error.message, true); }
   });
 }
 $('refresh-driver').addEventListener('click', event => action(event.currentTarget, () => load('driver')));
 $('operations-form').addEventListener('submit', event => { event.preventDefault(); pages.agent = 0; action(event.currentTarget.querySelector('button'), () => load('agent')); });
-try { await renewCsrf(); await enter(await api('/api/auth/me')); }
-catch (error) { signedOut(); if (error.status !== 401) notice(error.message, true); }
+const bootstrapRevision = sessionRevision();
+try { await renewCsrf(); assertCurrentSession(bootstrapRevision); const current = await api('/api/auth/me'); assertCurrentSession(bootstrapRevision); await enter(current); }
+catch (error) { if (!(error instanceof StaleSessionError) && isCurrentSession(bootstrapRevision)) { signedOut(); if (error.status !== 401) notice(error.message, true); } }

@@ -12,6 +12,7 @@ services:
       - ./reservations-service/src/main/resources/db/003_reservation_workflow.sql:/docker-entrypoint-initdb.d/002_workflow.sql:ro
       - ./reservations-service/src/main/resources/db/auth/001_accounts.sql:/docker-entrypoint-initdb.d/003_accounts.sql:ro
       - ./reservations-service/src/main/resources/db/auth/002_sessions.sql:/docker-entrypoint-initdb.d/004_sessions.sql:ro
+      - ./reservations-service/src/main/resources/db/004_booking_payment.sql:/docker-entrypoint-initdb.d/005_booking_payment.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U parking -d parking"]
       interval: 3s
@@ -32,7 +33,6 @@ services:
       TARIFFS_API_USER: ${TARIFFS_API_USER:-}
       TARIFFS_API_PASSWORD: ${TARIFFS_API_PASSWORD:-}
       PLACES_SYNC_ENABLED: ${PLACES_SYNC_ENABLED:-false}
-      NO_SHOW_GRACE: ${NO_SHOW_GRACE:-}
       AUTH_PLACES_USER: ${AUTH_PLACES_USER:-}
       AUTH_PLACES_PASSWORD_HASH: ${AUTH_PLACES_PASSWORD_HASH:-}
       AUTH_TARIFFS_USER: ${AUTH_TARIFFS_USER:-}

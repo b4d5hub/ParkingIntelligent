@@ -26,12 +26,11 @@ public class ReservationService {
     private final PlaceCommandService commands;
     private final ParkingGateway gateway;
     private final Clock clock;
-    private final Environment environment;
 
     public ReservationService(ReservationRepository repository, PlaceCommandService commands, ParkingGateway gateway,
                               Clock clock, Environment environment) {
         this.repository = repository; this.commands = commands; this.gateway = gateway;
-        this.clock = clock; this.environment = environment;
+        this.clock = clock;
     }
 
     public ReservationPage mine(long driverId, int page, int size) {
@@ -85,6 +84,8 @@ public class ReservationService {
         reservation.setCurrency(quote.currency()); reservation.setQuoteReference(quote.reference());
         reservation.setMontantEstime(quote.amount()); reservation.setRequestKey(key);
         reservation.setRequestFingerprint(fingerprint);
+        reservation.setBookingPaid(quote.amount());
+        reservation.setPaymentStatus("PAID"); reservation.setPaymentReference("SIM-" + UUID.randomUUID());
         return ReservationResponse.fromEntity(repository.saveAndFlush(reservation));
     }
 
@@ -109,8 +110,7 @@ public class ReservationService {
         if (reservation.getStatut() != ReservationStatus.CONFIRMED) { throw ReservationFailure.conflict("Cette réservation ne peut pas démarrer"); }
         OffsetDateTime now = OffsetDateTime.now(clock);
         if (now.isBefore(reservation.getDebutPrevu())) { throw ReservationFailure.conflict("Le créneau n'a pas encore commencé"); }
-        Duration grace = gracePeriod();
-        if (!now.isBefore(reservation.getFinPrevue()) || (grace != null && now.isAfter(reservation.getDebutPrevu().plus(grace)))) {
+        if (!now.isBefore(reservation.getFinPrevue())) {
             throw ReservationFailure.conflict("Le délai d'arrivée est dépassé");
         }
         var place = requireServiceable(reservation.getPlaceId());
@@ -133,16 +133,35 @@ public class ReservationService {
         }
         OffsetDateTime now = OffsetDateTime.now(clock);
         if (now.isBefore(reservation.getArriveeReelle())) { throw ReservationFailure.conflict("Horloge incohérente"); }
-        var request = new ReservationCreateRequest(reservation.getPlaceId(), reservation.getDebutPrevu(),
-                reservation.getFinPrevue(), reservation.getTypeVehicule());
-        var quote = validQuote(gateway.finalAmount(priceRequest(reservation.getConducteurId(), request,
-                reservation.getArriveeReelle(), now, reservation.getQuoteReference())));
-        if (reservation.getCurrency() != null && !reservation.getCurrency().equals(quote.currency())) {
-            throw new ReservationFailure(HttpStatus.BAD_GATEWAY, "INVALID_PARTNER_RESPONSE", "Devise incohérente");
+        if (reservation.getBookingPaid() == null) {
+            // Preserve the original agreement for historical, unpaid bookings.
+            var request = new ReservationCreateRequest(reservation.getPlaceId(), reservation.getDebutPrevu(),
+                    reservation.getFinPrevue(), reservation.getTypeVehicule());
+            var quote = validQuote(gateway.finalAmount(priceRequest(reservation.getConducteurId(), request,
+                    reservation.getArriveeReelle(), now, reservation.getQuoteReference())));
+            requireCurrency(reservation, quote);
+            reservation.setMontantFinal(quote.amount()); reservation.setCurrency(quote.currency());
+            reservation.setPaymentReference("SIM-" + UUID.randomUUID());
+        } else {
+            BigDecimal extra = new BigDecimal("0.00");
+            if (now.isAfter(reservation.getFinPrevue())) {
+                // Charge only the interval beyond the paid slot, even after a late arrival.
+                var request = new ReservationCreateRequest(reservation.getPlaceId(), reservation.getFinPrevue(),
+                        now, reservation.getTypeVehicule());
+                var quote = validQuote(gateway.finalAmount(priceRequest(reservation.getConducteurId(), request,
+                        reservation.getFinPrevue(), now, null)));
+                requireCurrency(reservation, quote);
+                extra = quote.amount();
+            }
+            BigDecimal total = reservation.getBookingPaid().add(extra);
+            if (total.precision() > 10) {
+                throw new ReservationFailure(HttpStatus.BAD_GATEWAY, "INVALID_PARTNER_RESPONSE", "Montant total trop élevé");
+            }
+            reservation.setExtraPaid(extra); reservation.setMontantFinal(total);
+            if (extra.signum() > 0) { reservation.setExtraPaymentReference("SIM-" + UUID.randomUUID()); }
         }
-        reservation.setMontantFinal(quote.amount()); reservation.setCurrency(quote.currency());
         reservation.setDepartReel(now); reservation.setStatut(ReservationStatus.COMPLETED);
-        reservation.setPaymentStatus("PAID"); reservation.setPaymentReference("SIM-" + UUID.randomUUID());
+        reservation.setPaymentStatus("PAID");
         reservation.setPlacesSyncPending(true);
         commands.enqueue(id, reservation.getPlaceId(), "RELEASE");
         return ReservationResponse.fromEntity(reservation);
@@ -150,26 +169,14 @@ public class ReservationService {
 
     @Transactional
     public int expireNoShows() {
-        Duration grace = gracePeriod();
-        if (grace == null) { return 0; }
-        int count = 0;
-        OffsetDateTime deadline = OffsetDateTime.now(clock).minus(grace);
-        for (Long id : repository.findNoShowIds(deadline, PageRequest.of(0, 100))) {
-            Reservation reservation = repository.lockById(id).orElseThrow(ReservationFailure::missing);
-            if (reservation.getStatut() == ReservationStatus.CONFIRMED && reservation.getArriveeReelle() == null
-                    && reservation.getDebutPrevu().isBefore(deadline)) {
-                reservation.setStatut(ReservationStatus.EXPIRED); count++;
-            }
-        }
-        return count;
+        // The paid slot stays reserved until its planned end, regardless of lateness.
+        return 0;
     }
 
-    private Duration gracePeriod() {
-        String value = environment.getProperty("parking.no-show-grace", "");
-        if (value.isBlank()) { return null; }
-        Duration grace = Duration.parse(value);
-        if (grace.isNegative() || grace.isZero()) { throw new IllegalStateException("Invalid no-show grace period"); }
-        return grace;
+    private void requireCurrency(Reservation reservation, ParkingGateway.Quote quote) {
+        if (reservation.getCurrency() != null && !reservation.getCurrency().equals(quote.currency())) {
+            throw new ReservationFailure(HttpStatus.BAD_GATEWAY, "INVALID_PARTNER_RESPONSE", "Devise incohérente");
+        }
     }
     private PageRequest paging(int page, int size) {
         if (page < 0 || size < 1 || size > 100) { throw bad("Pagination invalide"); }

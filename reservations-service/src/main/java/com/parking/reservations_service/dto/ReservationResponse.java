@@ -21,6 +21,9 @@ public record ReservationResponse(
         String currency,
         String paymentStatus,
         String paymentReference,
+        BigDecimal bookingPaid,
+        BigDecimal extraPaid,
+        String extraPaymentReference,
         boolean placesSyncPending
 ) {
     public static ReservationResponse fromEntity(Reservation reservation) {
@@ -36,7 +39,8 @@ public record ReservationResponse(
                 reservation.getMontantEstime(),
                 reservation.getMontantFinal(),
                 reservation.getTypeVehicule(), reservation.getCurrency(), reservation.getPaymentStatus(),
-                reservation.getPaymentReference(), reservation.isPlacesSyncPending()
+                reservation.getPaymentReference(), reservation.getBookingPaid(), reservation.getExtraPaid(),
+                reservation.getExtraPaymentReference(), reservation.isPlacesSyncPending()
         );
     }
 }

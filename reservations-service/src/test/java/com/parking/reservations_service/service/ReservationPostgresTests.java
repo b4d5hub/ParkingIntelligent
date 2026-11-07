@@ -61,6 +61,10 @@ class ReservationPostgresTests {
         var start = OffsetDateTime.now().plusHours(2); var request = request(start, start.plusHours(1));
         var first = service.create(42L, request, UUID.randomUUID());
         service.cancel(42L, Long.parseLong(first.id()));
+        var cancelled = service.mineById(42L, Long.parseLong(first.id()));
+        assertEquals(first.bookingPaid(), cancelled.bookingPaid());
+        assertEquals(first.paymentReference(), cancelled.paymentReference());
+        assertEquals("PAID", cancelled.paymentStatus());
         assertEquals("CANCELLED", service.mineById(42L, Long.parseLong(first.id())).statut().name());
         assertNotNull(service.create(43L, request, UUID.randomUUID()));
         assertEquals(0, jdbc.queryForObject("select count(*) from reservation_place_commands where place_id = ?", Integer.class, place));
@@ -73,7 +77,10 @@ class ReservationPostgresTests {
         var completed = service.depart(id);
         assertEquals("PAID", completed.paymentStatus());
         assertEquals(completed.paymentReference(), service.depart(id).paymentReference());
-        verify(gateway, times(1)).finalAmount(any());
+        verify(gateway, never()).finalAmount(any());
+        assertEquals(new BigDecimal("15.00"), completed.bookingPaid());
+        assertEquals(new BigDecimal("0.00"), completed.extraPaid());
+        assertEquals(new BigDecimal("15.00"), completed.montantFinal());
         doThrow(new ReservationFailure(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "TEST_OUTAGE", "test"))
             .when(gateway).changeOccupancy(place, id, "OCCUPY", "reservation/" + id + "/OCCUPY");
         commands.dispatchBatch();
@@ -88,15 +95,37 @@ class ReservationPostgresTests {
         order.verify(gateway).changeOccupancy(place, id, "RELEASE", "reservation/" + id + "/RELEASE");
         assertEquals(2, jdbc.queryForObject("select count(*) from reservation_place_commands where reservation_id = ? and completed", Integer.class, id));
     }
+    @Test void extraPaymentPersistsAndRepeatedDeparturePreservesBothReferences() {
+        var start = OffsetDateTime.now().plusHours(2);
+        var booked = service.create(42L, request(start, start.plusHours(1)), UUID.randomUUID());
+        long id = Long.parseLong(booked.id());
+        jdbc.update("update reservations set debut_prevu=current_timestamp-interval '30 minutes', fin_prevue=current_timestamp+interval '1 hour' where id=?", id);
+        service.arrive(id);
+        jdbc.update("update reservations set fin_prevue=current_timestamp-interval '1 minute' where id=?", id);
+        var completed = service.depart(id);
+        var replay = service.depart(id);
+        assertEquals(new BigDecimal("15.00"), replay.bookingPaid());
+        assertEquals(new BigDecimal("12.00"), replay.extraPaid());
+        assertEquals(new BigDecimal("27.00"), replay.montantFinal());
+        assertEquals(booked.paymentReference(), replay.paymentReference());
+        assertNotNull(replay.extraPaymentReference());
+        assertEquals(completed.extraPaymentReference(), replay.extraPaymentReference());
+        assertNotEquals(replay.paymentReference(), replay.extraPaymentReference());
+        verify(gateway, times(1)).finalAmount(any());
+    }
+
     @Test void pricingFailureRollsBackDepartureAndReleaseCommand() {
         var start = OffsetDateTime.now().plusHours(2);
         long id = Long.parseLong(service.create(42L, request(start, start.plusHours(1)), UUID.randomUUID()).id());
         jdbc.update("update reservations set debut_prevu = current_timestamp - interval '10 minutes', fin_prevue = current_timestamp + interval '1 hour' where id = ?", id);
         service.arrive(id);
+        jdbc.update("update reservations set fin_prevue = current_timestamp - interval '1 minute' where id = ?", id);
         when(gateway.finalAmount(any())).thenThrow(new ReservationFailure(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE, "TEST_OUTAGE", "test"));
         assertThrows(ReservationFailure.class, () -> service.depart(id));
         var unchanged = service.mineById(42L, id);
         assertEquals("IN_PROGRESS", unchanged.statut().name()); assertNull(unchanged.departReel());
+        assertEquals(new BigDecimal("15.00"), unchanged.bookingPaid());
+        assertNull(unchanged.extraPaid()); assertNull(unchanged.extraPaymentReference());
         assertEquals(0, jdbc.queryForObject("select count(*) from reservation_place_commands where reservation_id = ? and operation = 'RELEASE'", Integer.class, id));
         commands.dispatchBatch();
     }

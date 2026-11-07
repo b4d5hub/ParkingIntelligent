@@ -61,6 +61,20 @@ public class Reservation {
     @Column(nullable = false)
     private long version;
 
+    // Null identifies historical reservations charged only at departure.
+    @Column(name = "booking_paid", precision = 10, scale = 2)
+    private BigDecimal bookingPaid;
+    @Column(name = "extra_paid", precision = 10, scale = 2)
+    private BigDecimal extraPaid;
+    @Column(name = "extra_payment_reference", length = 100)
+    private String extraPaymentReference;
+    public BigDecimal getBookingPaid() { return bookingPaid; }
+    public void setBookingPaid(BigDecimal value) { bookingPaid = value; }
+    public BigDecimal getExtraPaid() { return extraPaid; }
+    public void setExtraPaid(BigDecimal value) { extraPaid = value; }
+    public String getExtraPaymentReference() { return extraPaymentReference; }
+    public void setExtraPaymentReference(String value) { extraPaymentReference = value; }
+
     public String getTypeVehicule() { return typeVehicule; }
     public void setTypeVehicule(String value) { typeVehicule = value; }
     public String getCurrency() { return currency; }

@@ -49,4 +49,4 @@ Tests JavaScript sans dépendances : `node --test frontend/tests/api.test.mjs`. 
 - [AUTHENTICATION.md](AUTHENTICATION.md) : compte commun, login/logout, sessions JDBC, CSRF et validation interne pour les trois autres services.
 - [TEAM_HANDOFF.md](TEAM_HANDOFF.md) : travail restant pour assembler le projet.
 
-Paiement retenu : simulation au départ sur la durée réelle, sans paiement à la réservation ni pénalité supplémentaire. La tolérance d'absence reste à décider et l'expiration automatique reste désactivée par défaut.
+Paiement retenu : simulation du paiement du creneau a la reservation, sans remboursement. Au depart, seul le temps apres la fin prevue est facture en plus, sans penalite. Aucune expiration pour absence ; un retard ne prolonge pas la fin prevue. Voir RESERVATIONS.md pour la migration 004 et le contrat Tarifs a valider.
