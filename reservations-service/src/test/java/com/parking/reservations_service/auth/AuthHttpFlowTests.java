@@ -239,10 +239,10 @@ class AuthHttpFlowTests {
     }
 
     @Test
-    void authenticationDoesNotOpenReservationRoutesBeforeOwnershipChecksExist() throws Exception {
+    void driverCannotAccessAgentOperations() throws Exception {
         MockHttpSession session = authenticatedSession();
 
-        mockMvc.perform(get("/api/reservations").secure(true).session(session))
+        mockMvc.perform(get("/api/reservations/operations").secure(true).session(session))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
     }

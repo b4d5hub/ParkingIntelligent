@@ -37,6 +37,9 @@ public class AuthWebSecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/reservations/operations").hasRole("AGENT")
+                        .requestMatchers(HttpMethod.POST, "/api/reservations/*/arrival", "/api/reservations/*/departure").hasRole("AGENT")
+                        .requestMatchers("/api/reservations", "/api/reservations/**").hasRole("CONDUCTEUR")
                         .anyRequest().denyAll())
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, exception) -> writeJson(objectMapper, response,
