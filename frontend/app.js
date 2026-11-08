@@ -17,6 +17,9 @@ function signedOut() {
   $('workspace').hidden = true; $('identity').hidden = true; $('login-panel').hidden = false;
   $('driver-list').replaceChildren(); $('agent-list').replaceChildren(); $('display-name').textContent = '';
   $('booking-form').reset(); $('quote').textContent = ''; $('login-form').elements.password.value = '';
+  $('place-select').replaceChildren(node('option', 'Connectez-vous pour choisir une place.'));
+  $('place-select').firstChild.value = ''; $('place-select').disabled = true;
+  $('places-status').textContent = '';
   for (const button of document.querySelectorAll('button')) { activeActions.delete(button); button.disabled = false; }
 }
 async function action(button, task) {
@@ -36,7 +39,7 @@ function bookingBody() {
   if (!form.reportValidity()) throw new Error('Complétez les champs du formulaire.');
   const values = new FormData(form);
   const placeId = values.get('placeId');
-  if (BigInt(placeId) > 9223372036854775807n) throw new Error('Identifiant de place invalide.');
+  if ($('place-select').disabled || !/^[1-9][0-9]*$/.test(placeId || '') || BigInt(placeId) > 9223372036854775807n) throw new Error('Choisissez une place dans la liste.');
   const start = new Date(values.get('debutPrevu')), end = new Date(values.get('finPrevue'));
   if (!(start > new Date()) || !(end > start)) throw new Error('Choisissez un début futur et une fin après le début.');
   return { placeId, typeVehicule: values.get('typeVehicule').toUpperCase(), debutPrevu: start.toISOString(), finPrevue: end.toISOString() };
@@ -56,7 +59,32 @@ async function show(selected) {
   mode = selected;
   for (const role of ['driver', 'agent']) { $(role + '-panel').hidden = role !== mode; $(role + '-tab').classList.toggle('active', role === mode); }
   $('page-title').textContent = mode === 'driver' ? 'Mes réservations' : 'Opérations du parking';
-  await load(mode);
+  await Promise.all(selected === 'driver' ? [load(selected), loadPlaces()] : [load(selected)]);
+}
+async function loadPlaces() {
+  const revision = sessionRevision(), select = $('place-select'), previous = select.value;
+  select.disabled = true; $('places-status').textContent = 'Chargement des places…';
+  try {
+    const places = await api('/api/places');
+    assertCurrentSession(revision);
+    if (!Array.isArray(places) || places.some(place => !/^[1-9][0-9]*$/.test(place.id || '') || BigInt(place.id) > 9223372036854775807n || typeof place.numero !== 'string' || !['LIBRE', 'OCCUPEE', 'RESERVEE', 'HORS_SERVICE'].includes(place.statut))) throw new Error('La liste des places reçue est invalide.');
+    const choices = places.filter(place => place.statut !== 'HORS_SERVICE');
+    const placeholder = node('option', choices.length ? 'Choisissez une place' : 'Aucune place en service'); placeholder.value = '';
+    select.replaceChildren(placeholder);
+    for (const place of choices) {
+      const option = node('option', `Place ${place.numero}${place.statut === 'OCCUPEE' ? ' · occupée actuellement' : ''}`);
+      option.value = place.id; select.append(option);
+    }
+    if (choices.some(place => place.id === previous)) select.value = previous;
+    select.disabled = !choices.length;
+    $('quote').textContent = '';
+    $('places-status').textContent = choices.length ? 'Une place occupée maintenant peut être réservée pour plus tard. Vérifiez votre créneau.' : 'Aucune place en service. Vous pouvez actualiser la liste.';
+  } catch (error) {
+    if (error instanceof StaleSessionError || !isCurrentSession(revision)) throw error;
+    const placeholder = node('option', 'Places indisponibles'); placeholder.value = ''; select.replaceChildren(placeholder);
+    $('places-status').textContent = 'Impossible de charger les places. Vos réservations restent consultables ; réessayez avec « Actualiser les places ».';
+    if (error.status === 401) throw error;
+  }
 }
 async function load(role) {
   const revision = sessionRevision();
@@ -85,7 +113,10 @@ function reservationCard(reservation, role) {
   card.append(node('p', `Estimation : ${money(reservation.montantEstime, reservation.currency)}${reservation.montantFinal !== null ? ' · Final : ' + money(reservation.montantFinal, reservation.currency) : ''}`, 'muted'));
   if (role === 'agent') card.append(node('p', `Conducteur ${reservation.conducteurId} · Arrivée : ${date(reservation.arriveeReelle)} · Départ : ${date(reservation.departReel)}`, 'muted'));
   if (reservation.paymentStatus === 'PAID') card.append(node('p', 'Paiement simulé enregistré · ' + reservation.paymentReference, 'muted'));
-  if (reservation.bookingPaid != null) card.append(node('p', `Créneau payé : ${money(reservation.bookingPaid, reservation.currency)} · Complément payé : ${reservation.extraPaid == null ? 'à calculer au départ' : money(reservation.extraPaid, reservation.currency)}`, 'muted'));
+  if (reservation.bookingPaid != null) {
+    const balance = reservation.statut === 'CANCELLED' ? 'Paiement conservé, sans remboursement' : reservation.extraPaid == null ? 'Complément à calculer au départ' : 'Complément payé : ' + money(reservation.extraPaid, reservation.currency);
+    card.append(node('p', `Créneau payé : ${money(reservation.bookingPaid, reservation.currency)} · ${balance}`, 'muted'));
+  }
   if (reservation.extraPaymentReference) card.append(node('p', 'Paiement complémentaire simulé : ' + reservation.extraPaymentReference, 'muted'));
   if (reservation.placesSyncPending) card.append(node('p', 'Mise à jour de la place en attente. Actualisez pour vérifier la synchronisation.', 'sync'));
   let operation, label;
@@ -138,6 +169,7 @@ for (const role of ['driver', 'agent']) {
   });
 }
 $('refresh-driver').addEventListener('click', event => action(event.currentTarget, () => load('driver')));
+$('refresh-places').addEventListener('click', event => action(event.currentTarget, () => loadPlaces()));
 $('operations-form').addEventListener('submit', event => { event.preventDefault(); pages.agent = 0; action(event.currentTarget.querySelector('button'), () => load('agent')); });
 const bootstrapRevision = sessionRevision();
 try { await renewCsrf(); assertCurrentSession(bootstrapRevision); const current = await api('/api/auth/me'); assertCurrentSession(bootstrapRevision); await enter(current); }

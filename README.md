@@ -1,6 +1,6 @@
 # Parking intelligent
 
-Projet universitaire : quatre services backend, un frontend commun et une base PostgreSQL commune. Le dépôt contient actuellement le module Réservations de Badr Eddine. Places, Tarifs et Abonnements restent à intégrer par leurs responsables.
+Projet universitaire : quatre services backend, un frontend commun et une base PostgreSQL commune. Réservations et Places peuvent être assemblés. Tarifs contient le calcul et la persistance mais ses API restent à fournir ; Abonnements reste à ajouter.
 
 ## Démarrer l'installation locale Réservations
 
@@ -26,7 +26,9 @@ docker compose -f compose.reservations.yml run --rm --no-deps -it reservations j
 
 Le mot de passe est masqué et confirmé. Choisir les rôles nécessaires, sans attribuer ADMIN à tous les comptes. Aucun compte ni mot de passe prédéfini n'est créé. Le compte et les rôles sont enregistrés dans la base de cette installation.
 
-Les URL et identifiants Places/Tarifs sont vides par défaut. La connexion et la consultation fonctionnent sans ces services ; un devis, une réservation ou un calcul final dépendant d'un partenaire répond `503` tant qu'il n'est pas configuré. Aucun faux tarif ou fausse place n'est utilisé dans l'application. La liste des places appartient au module Places ; le formulaire actuel reçoit son identifiant.
+Les URL et identifiants Places/Tarifs sont vides par défaut. La connexion et la consultation fonctionnent sans ces services ; un devis, une réservation ou un calcul final dépendant d'un partenaire répond `503` tant qu'il n'est pas configuré. Aucun faux tarif ou fausse place n'est utilisé dans l'application. Le formulaire charge la liste réelle de Places et permet de choisir une place par son numéro. Sans Places, il explique l'indisponibilité et propose de réessayer.
+
+Pour assembler Réservations et Places, renseigner les deux comptes machine dans `.env`, puis utiliser `docker compose -f compose.reservations.yml -f compose.places.yml up --build -d`. Voir [PLACES_INTEGRATION.md](PLACES_INTEGRATION.md) pour les variables et les migrations. Cet assemblage active la synchronisation Places ; il ne fournit pas encore les API Tarifs.
 
 Pour arrêter : `docker compose -f compose.reservations.yml down` (sans `-v` : conserver les données).
 

@@ -21,7 +21,9 @@
       <nav id="role-navigation" aria-label="Espace"><button id="driver-tab" class="tab">Conducteur</button><button id="agent-tab" class="tab">Agent</button></nav>
       <div id="driver-panel" class="dashboard" hidden>
         <section class="card booking"><h2>Réserver une place</h2><p class="muted">Choisissez une place et un créneau futur.</p><form id="booking-form">
-          <label>Identifiant de la place<input name="placeId" inputmode="numeric" pattern="[1-9][0-9]*" placeholder="Ex. 20" required></label>
+          <label>Place<select name="placeId" id="place-select" required disabled><option value="">Chargement des places…</option></select></label>
+          <p id="places-status" class="muted" role="status">La disponibilité du créneau sera vérifiée séparément.</p>
+          <button type="button" id="refresh-places" class="quiet">Actualiser les places</button>
           <label>Type de véhicule<input name="typeVehicule" maxlength="32" pattern="[A-Za-z0-9_-]{1,32}" placeholder="Code indiqué par le parking" required></label>
           <label>Début prévu<input name="debutPrevu" type="datetime-local" required></label><label>Fin prévue<input name="finPrevue" type="datetime-local" required></label>
           <div class="actions"><button type="button" id="estimate" class="secondary">Vérifier et estimer</button><button type="submit">Réserver et payer (simulation)</button></div>

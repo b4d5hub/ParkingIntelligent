@@ -1,6 +1,12 @@
 # Ajoute le service Places au compose de Réservations (même base, même réseau).
 # Utilisation : docker compose -f compose.reservations.yml -f compose.places.yml up --build
 services:
+  reservations:
+    environment:
+      PLACES_API_URL: http://places:8082
+      PLACES_SYNC_ENABLED: 'true'
+      AUTH_PLACES_USER: ${AUTH_PLACES_USER:?Definir AUTH_PLACES_USER dans .env}
+      AUTH_PLACES_PASSWORD_HASH: ${AUTH_PLACES_PASSWORD_HASH:?Definir AUTH_PLACES_PASSWORD_HASH dans .env}
   places:
     build: ./places-service
     environment:

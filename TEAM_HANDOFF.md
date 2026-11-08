@@ -2,7 +2,7 @@
 
 Le creneau est paye a la reservation, sans remboursement. Le retard ne prolonge pas le creneau et ne provoque pas d'expiration automatique. Seul le temps apres la fin prevue est facture en plus au depart, sans penalite.
 
-Amine : valider le contrat du complement decrit dans RESERVATIONS.md (intervalle fin prevue -> depart reel, quoteReference=null), fournir les endpoints et leur configuration. Zakariya : fournir les endpoints Places et leur configuration. Ces integrations reelles restent non verifiees. Les anciennes reservations non prepayees gardent leur regle historique.
+Amine : valider le contrat du complement decrit dans RESERVATIONS.md (intervalle fin prevue -> depart reel, quoteReference=null), fournir les endpoints et leur configuration. Les endpoints Places existent maintenant ; leur assemblage avec Reservations est decrit dans PLACES_INTEGRATION.md. Les anciennes reservations non prepayees gardent leur regle historique.
 
 # Passage à l'équipe
 
@@ -12,11 +12,11 @@ Reservations fournit le paiement simule du creneau a la reservation, sans rembou
 
 Le dépôt fournit aussi la connexion commune, les sessions PostgreSQL, CSRF, la validation interne, les écrans Réservations et une installation Compose locale. Les tests avec PostgreSQL utilisent un conteneur temporaire, pas la base de travail.
 
-Les API partenaires sont des propositions d'adaptation, pas des intégrations réalisées avec les trois autres backends. Les types de véhicules et la devise ne sont pas imposés aux autres modules.
+Les API Places sont implémentées. Leur intégration avec Réservations, l'authentification commune et le vrai frontend Nginx a passé treize contrôles navigateur sur une base temporaire le 8 novembre 2026. Tarifs était simulé dans cette campagne ; son intégration réelle et celle d'Abonnements restent à terminer. Voir `PLACES_INTEGRATION.md` et `docs/tests/Contribution_Reservations.md`. Les types de véhicules et la devise ne sont pas imposés aux autres modules.
 
 ## Zakariya — Places
 
-Confirmer les routes et formats de [RESERVATIONS.md](RESERVATIONS.md). Fournir la liste des places au frontend, leur état de service et leur occupation réelle. Protéger les appels d'occupation/libération par un compte machine Réservations. Mémoriser les clés d'idempotence et le propriétaire de l'occupation : une ancienne libération ne doit pas vider une place réaffectée.
+Les routes et la liste réelle sont disponibles. La configuration du frontend et de Réservations utilise maintenant ce contrat. Vérifier encore les commandes réutilisant une même clé avec un contenu différent : le service Places doit refuser cette réutilisation plutôt que l'accepter sans vérifier le contenu. Maintenir le contrôle du propriétaire de l'occupation.
 
 La disponibilité future est calculée sur les créneaux Réservations. Ne pas confondre ce résultat avec le champ d'occupation actuelle. Ne pas écrire directement dans les tables Réservations.
 
