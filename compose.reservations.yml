@@ -1,4 +1,4 @@
-# Installation locale du module. Les trois autres services seront ajoutes par leurs auteurs.
+# Installation locale de Reservations et Abonnements. Places et Tarifs restent a integrer.
 services:
   db:
     image: postgres:17
@@ -39,6 +39,17 @@ services:
       AUTH_TARIFFS_PASSWORD_HASH: ${AUTH_TARIFFS_PASSWORD_HASH:-}
       AUTH_SUBSCRIPTIONS_USER: ${AUTH_SUBSCRIPTIONS_USER:-}
       AUTH_SUBSCRIPTIONS_PASSWORD_HASH: ${AUTH_SUBSCRIPTIONS_PASSWORD_HASH:-}
+    depends_on:
+      db: {condition: service_healthy}
+    networks: [parking]
+  subscriptions:
+    build: ./subscriptions-service
+    environment:
+      NODE_ENV: production
+      PORT: 8082
+      DB_URL: postgres://db:5432/parking
+      DB_USER: parking
+      DB_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD dans .env}
     depends_on:
       db: {condition: service_healthy}
     networks: [parking]

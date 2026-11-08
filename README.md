@@ -1,6 +1,6 @@
 # Parking intelligent
 
-Projet universitaire : quatre services backend, un frontend commun et une base PostgreSQL commune. Le dépôt contient actuellement le module Réservations de Badr Eddine. Places, Tarifs et Abonnements restent à intégrer par leurs responsables.
+Projet universitaire : quatre services backend, un frontend commun et une base PostgreSQL commune. Le dépôt contient le module Réservations et le premier service Abonnements (Nest.js). Places et Tarifs restent à intégrer par leurs responsables. Compose démarre Abonnements sur le réseau interne ; son intégration au routage frontend attend le raccordement de l'authentification.
 
 ## Démarrer l'installation locale Réservations
 
@@ -13,6 +13,21 @@ Copy-Item .env.example .env
 # Modifier .env : choisir DB_PASSWORD, sans le versionner.
 docker compose -f compose.reservations.yml up --build -d
 ```
+
+Le schéma Abonnements n'est pas exécuté par Docker au démarrage. Après avoir démarré PostgreSQL et créé `parking_auth_users`, exécuter manuellement, dans cet ordre, `subscriptions-service/scripts/script001.sql`, `script002.sql` puis `script003.sql` dans la base `parking`.
+
+## Configuration du service Abonnements
+
+Compose construit le service Nest.js depuis `subscriptions-service/` et le démarre sous le nom `subscriptions` sur le réseau Docker privé `parking`. Il écoute le port `8082` dans le conteneur ; ce port n'est pas publié sur l'ordinateur et le frontend ne le route pas encore. La base commune est fournie par le service `db`.
+
+Variables utilisées par le service :
+
+- `PORT` : port HTTP interne, défini à `8082` dans Compose.
+- `DB_URL` : adresse PostgreSQL interne, définie à `postgres://db:5432/parking`.
+- `DB_USER` et `DB_PASSWORD` : identifiants PostgreSQL. `DB_PASSWORD` doit être défini dans le fichier local `.env` (copié depuis `.env.example`) ; ne pas publier ce fichier.
+- `NODE_ENV` : défini à `production` dans Compose.
+
+Routes actuellement disponibles : `POST /api/subscriptions` pour créer un abonnement au prix configuré côté serveur et `GET /api/subscriptions/me` pour consulter ceux du conducteur connecté. Les routes exigent un principal de session avec le rôle `CONDUCTEUR` ; le raccordement à l'authentification commune reste à faire. Aucun contrat d'appel direct depuis Places, Réservations ou Tarifs n'est défini pour l'instant. Voir le [README du service](subscriptions-service/README.md) pour les migrations, les prix et les tests.
 
 Ouvrir [http://127.0.0.1:8080](http://127.0.0.1:8080). Le frontend est le seul port publié, sur loopback. La première construction télécharge Java, Maven et les dépendances. Le cookie local peut circuler en HTTP uniquement dans cette installation ; pour un déploiement en ligne, configurer HTTPS et conserver Secure.
 
