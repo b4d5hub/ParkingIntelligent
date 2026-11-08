@@ -14,6 +14,7 @@ import java.util.List;
 public class PlaceService {
 
     private final PlaceRepository places;
+    private static final int NUMERO_MAX = 20;
 
     public PlaceService(PlaceRepository places) {
         this.places = places;
@@ -21,7 +22,14 @@ public class PlaceService {
 
     @Transactional
     public Place create(String numero) {
+        if (numero == null || numero.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Numéro de place obligatoire");
+        }
         String clean = numero.trim();
+        if (clean.length() > NUMERO_MAX) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Numéro de place trop long (" + NUMERO_MAX + " caractères maximum)");
+        }
         if (places.existsByNumero(clean)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Numéro de place déjà utilisé");
         }
