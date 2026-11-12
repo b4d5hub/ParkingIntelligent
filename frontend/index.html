@@ -4,34 +4,95 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light">
-  <title>Parking · Réservations</title>
+  <title>Parking intelligent</title>
   <link rel="stylesheet" href="/styles.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
-  <header class="topbar"><a href="/" class="brand"><span class="logo">P</span> Parking<span class="muted"> / Réservations</span></a><div id="identity" hidden><span id="display-name"></span><button id="logout" class="quiet">Déconnexion</button></div></header>
+  <header class="topbar">
+    <a href="/" class="brand"><span class="logo" aria-hidden="true">P</span> Parking intelligent</a>
+    <div id="identity" hidden><span id="display-name"></span><button id="logout" class="quiet">Déconnexion</button></div>
+  </header>
   <main>
-    <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+    <div id="notice" class="notice" role="status" hidden></div>
     <section id="login-panel" class="login-layout">
-      <div><p class="eyebrow">PARKING INTELLIGENT</p><h1>Votre place,<br> au bon moment.</h1><p class="intro">Réservez votre créneau et retrouvez vos réservations en un seul endroit.</p><p class="muted">Le creneau est paye a la reservation, sans remboursement. Le temps apres la fin reservee est paye en plus au depart, sans penalite.</p></div>
-      <form id="login-form" class="card login-card"><h2>Se connecter</h2><p class="muted">Utilisez le compte fourni par votre équipe.</p><label>Email<input name="email" type="email" autocomplete="username" maxlength="254" required></label><label>Mot de passe<input name="password" type="password" autocomplete="current-password" maxlength="1024" required></label><button type="submit">Connexion</button></form>
+      <div><h1>Votre place,<br> au bon moment.</h1><p class="intro">Réservez votre créneau ou gérez les arrivées et les départs depuis votre espace.</p></div>
+      <form id="login-form" class="card login-card">
+        <h2>Se connecter</h2>
+        <label>Adresse e-mail<input name="email" type="email" autocomplete="username" maxlength="254" required></label>
+        <label>Mot de passe<input name="password" type="password" autocomplete="current-password" maxlength="1024" required></label>
+        <button type="submit">Connexion</button>
+      </form>
     </section>
     <section id="workspace" hidden>
-      <p class="eyebrow">VOTRE ESPACE PARKING</p><h1 id="page-title">Mes réservations</h1>
-      <nav id="role-navigation" aria-label="Espace"><button id="driver-tab" class="tab">Conducteur</button><button id="agent-tab" class="tab">Agent</button></nav>
+      <nav id="role-navigation" aria-label="Espaces du parking">
+        <button id="driver-tab" class="tab">Réserver une place</button>
+        <button id="history-tab" class="tab">Mes réservations</button>
+        <button id="agent-tab" class="tab">Arrivées et départs</button>
+      </nav>
+      <h1 id="page-title" tabindex="-1">Réserver une place</h1>
       <div id="driver-panel" class="dashboard" hidden>
-        <section class="card booking"><h2>Réserver une place</h2><p class="muted">Choisissez une place et un créneau futur.</p><form id="booking-form">
-          <label>Place<select name="placeId" id="place-select" required disabled><option value="">Chargement des places…</option></select></label>
-          <p id="places-status" class="muted" role="status">La disponibilité du créneau sera vérifiée séparément.</p>
-          <button type="button" id="refresh-places" class="quiet">Actualiser les places</button>
-          <label>Type de véhicule<input name="typeVehicule" maxlength="32" pattern="[A-Za-z0-9_-]{1,32}" placeholder="Code indiqué par le parking" required></label>
-          <label>Début prévu<input name="debutPrevu" type="datetime-local" required></label><label>Fin prévue<input name="finPrevue" type="datetime-local" required></label>
-          <div class="actions"><button type="button" id="estimate" class="secondary">Vérifier et estimer</button><button type="submit">Réserver et payer (simulation)</button></div>
-          <p id="quote" class="muted" aria-live="polite">Créneau payé à la réservation (simulation), sans remboursement. Temps supplémentaire payé au départ.</p>
-        </form></section>
-        <section class="card list-section"><div class="section-heading"><h2>Mes réservations</h2><button id="refresh-driver" class="quiet">Actualiser</button></div><div id="driver-list" class="reservation-list"></div><div class="pager"><button id="previous-driver" class="secondary">Précédent</button><span id="driver-page"></span><button id="next-driver" class="secondary">Suivant</button></div></section>
+        <section aria-label="Plan de réservation">
+          <div class="map-heading">
+            <p id="places-status" class="muted" role="status"></p>
+            <button type="button" id="refresh-places" class="quiet">Actualiser les places</button>
+          </div>
+          <div id="driver-map" class="lot" aria-label="Places du parking"></div>
+          <ul class="legend" aria-label="Légende">
+            <li><i class="key available"></i>Disponible</li><li><i class="key selected"></i>Sélectionnée</li><li><i class="key unavailable"></i>Indisponible</li><li><i class="key unchecked"></i>À vérifier</li>
+          </ul>
+        </section>
+        <section class="card booking" aria-labelledby="booking-title">
+          <h2 id="booking-title">Votre créneau</h2>
+          <form id="booking-form">
+            <label>Début prévu<input name="debutPrevu" type="datetime-local" required></label>
+            <label>Fin prévue<input name="finPrevue" type="datetime-local" required></label>
+            <fieldset class="durations"><legend>Durée rapide</legend>
+              <button type="button" class="secondary" data-hours="1">1 h</button>
+              <button type="button" class="secondary" data-hours="2">2 h</button>
+              <button type="button" class="secondary" data-hours="3">3 h</button>
+              <button type="button" class="secondary" data-hours="4">4 h</button>
+            </fieldset>
+            <label>Type de véhicule<input name="typeVehicule" maxlength="32" pattern="[A-Za-z0-9_-]{1,32}" placeholder="Ex. VOITURE" required></label>
+            <input type="hidden" name="placeId" id="place-select">
+            <div class="booking-summary"><span>Place sélectionnée</span><strong id="selected-place">—</strong></div>
+            <div class="booking-summary"><span>Montant estimé</span><strong id="quote-amount">—</strong></div>
+            <p id="quote" class="muted" role="status"></p>
+            <div class="booking-actions">
+              <button type="button" id="estimate" class="secondary" disabled>Obtenir le devis</button>
+              <button type="submit" id="book" disabled>Réserver et payer (simulation)</button>
+            </div>
+            <p class="muted policy">Le créneau est payé à la réservation. L’annulation ne donne pas lieu à un remboursement. Seul le temps supplémentaire est facturé au départ.</p>
+          </form>
+        </section>
       </div>
-      <section id="agent-panel" class="card" hidden><div class="section-heading"><div><h2>Arrivées et départs</h2><p class="muted">Enregistrez les mouvements réels après vérification sur place.</p></div></div><form id="operations-form" class="filters"><label>Du<input name="start" type="datetime-local" required></label><label>Au<input name="end" type="datetime-local" required></label><button type="submit">Consulter</button></form><div id="agent-list" class="reservation-list"></div><div class="pager"><button id="previous-agent" class="secondary">Précédent</button><span id="agent-page"></span><button id="next-agent" class="secondary">Suivant</button></div></section>
+      <section id="history-panel" class="history" aria-label="Historique des réservations" hidden>
+        <div class="section-heading"><p class="muted">Retrouvez vos créneaux et leurs paiements.</p><button id="refresh-driver" class="quiet">Actualiser</button></div>
+        <div id="driver-list" class="reservation-list"></div>
+        <div class="pager"><button id="previous-driver" class="secondary">Précédent</button><span id="driver-page"></span><button id="next-driver" class="secondary">Suivant</button></div>
+      </section>
+      <section id="agent-panel" aria-label="Opérations du parking" hidden>
+        <form id="operations-form" class="filters">
+          <label>Du<input name="start" type="datetime-local" required></label>
+          <label>Au<input name="end" type="datetime-local" required></label>
+          <button type="submit" class="secondary">Actualiser</button>
+        </form>
+        <div class="dashboard">
+          <section aria-label="Occupation du parking">
+            <p id="agent-places-status" class="muted" role="status"></p>
+            <div id="agent-map" class="lot" aria-label="Occupation actuelle"></div>
+            <ul class="legend" aria-label="Légende">
+              <li><i class="key unchecked"></i>Libre</li><li><i class="key awaiting"></i>Arrivée attendue</li><li><i class="key occupied"></i>Occupée</li><li><i class="key unavailable"></i>Hors service</li>
+            </ul>
+            <p class="muted policy">Le plan indique l’occupation actuelle et les arrivées attendues sur la page affichée.</p>
+          </section>
+          <section class="card operations">
+            <h2>Réservations de la période</h2>
+            <div id="agent-list" class="reservation-list"></div>
+            <div class="pager"><button id="previous-agent" class="secondary">Précédent</button><span id="agent-page"></span><button id="next-agent" class="secondary">Suivant</button></div>
+          </section>
+        </div>
+      </section>
     </section>
   </main>
   <footer>Parking intelligent · Prototype universitaire · Paiement simulé</footer>
