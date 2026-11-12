@@ -4,6 +4,7 @@ import com.parking.tarifs.entity.TarifHoraire;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 /**
@@ -13,7 +14,9 @@ import java.util.Optional;
 public interface TarifHoraireJpaRepository extends JpaRepository<TarifHoraire, Long> {
 
     /**
-     * Récupère le tarif le plus récent selon sa date de validité et son identifiant.
+     * Récupère le tarif en vigueur le plus récent dont la date de validité
+     * est inférieure ou égale à {@code maintenant} (exclut les tarifs futurs).
      */
-    Optional<TarifHoraire> findFirstByOrderByValableAPartirDescIdDesc();
+    Optional<TarifHoraire> findFirstByValableAPartirLessThanEqualOrderByValableAPartirDescIdDesc(
+            OffsetDateTime maintenant);
 }
