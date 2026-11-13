@@ -38,9 +38,11 @@ Une occupation actuelle ne bloque pas à elle seule une réservation future. En 
 
 L'arrivée et le départ écrivent leur commande Places dans la même transaction que l'état local. `reservation_place_commands` conserve ces commandes après un redémarrage. Le traitement réessaie après une panne, dans l'ordre occupation puis libération. `placesSyncPending` indique une synchronisation en attente. Activer `PLACES_SYNC_ENABLED=true` seulement après validation du contrat Places. Un agent ne doit pas interpréter une réponse locale comme un accusé de réception du service Places.
 
-## Contrats partenaires proposés — à confirmer
+## Contrats partenaires
 
-Ces chemins sont des adaptateurs proposés et testés côté Réservations. Ils ne prouvent pas l'existence des API des autres membres. Les URL, technologies et ports des partenaires ne sont pas connus. Sans URL et identifiants configurés, l'appel échoue avec `503`, sans tarif ou place fictifs.
+Les routes Places existent désormais dans le service de Zakariya (port interne 8082). Le frontend charge sa liste authentifiée et le sélecteur conserve les places occupées actuellement pour permettre les réservations futures ; il exclut les places hors service. L'overlay `compose.places.yml` configure l'URL et la synchronisation. Voir `PLACES_INTEGRATION.md` pour les deux comptes machine. Les routes Tarifs restent une proposition en attente d'implémentation. Sans partenaire configuré, l'appel échoue avec `503`, sans tarif ou place fictifs.
+
+Vérification du 8 novembre : treize contrôles navigateur réussis avec les vrais services Réservations et Places, l'authentification commune, Nginx et une base PostgreSQL temporaire. Les arrêts/redémarrages de Places confirment la reprise des commandes et de la liste. Tarifs reste simulé pour cette campagne ; aucun tarif fictif n'est présent dans le code applicatif. Les résultats et limites sont détaillés dans `PLACES_INTEGRATION.md`.
 
 Configurer `PLACES_API_URL`, `PLACES_API_USER`, `PLACES_API_PASSWORD`, `TARIFFS_API_URL`, `TARIFFS_API_USER`, `TARIFFS_API_PASSWORD` hors Git. Comptes machine distincts des comptes utilisateur ; HTTP Basic sur TLS, ou uniquement des secrets de démonstration sur réseau local privé. Délais : connexion 2 s, lecture 3 s. Aucun endpoint `/internal` ne doit être publié par le frontend.
 

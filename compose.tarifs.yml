@@ -1,0 +1,28 @@
+# Ajouter après compose.reservations.yml, avec compose.places.yml si nécessaire.
+services:
+  db:
+    volumes:
+      - ./tarifs-service/src/main/resources/db/tarifs.sql:/docker-entrypoint-initdb.d/006_tarifs.sql:ro
+  reservations:
+    environment:
+      TARIFFS_API_URL: http://tarifs:8082
+      TARIFFS_API_USER: ${TARIFFS_API_USER:?Definir TARIFFS_API_USER dans .env}
+      TARIFFS_API_PASSWORD: ${TARIFFS_API_PASSWORD:?Definir TARIFFS_API_PASSWORD dans .env}
+      AUTH_TARIFFS_USER: ${AUTH_TARIFFS_USER:?Definir AUTH_TARIFFS_USER dans .env}
+      AUTH_TARIFFS_PASSWORD_HASH: ${AUTH_TARIFFS_PASSWORD_HASH:?Definir AUTH_TARIFFS_PASSWORD_HASH dans .env}
+  tarifs:
+    build: ./tarifs-service
+    environment:
+      PORT: '8082'
+      DB_URL: jdbc:postgresql://db:5432/parking
+      DB_USER: parking
+      DB_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD dans .env}
+      INTERNAL_CALLER_USER: ${TARIFFS_API_USER:?Definir TARIFFS_API_USER dans .env}
+      INTERNAL_CALLER_SECRET: ${TARIFFS_API_PASSWORD:?Definir TARIFFS_API_PASSWORD dans .env}
+      AUTH_SERVICE_URL: http://reservations:8081
+      AUTH_TARIFS_USER: ${AUTH_TARIFFS_USER:?Definir AUTH_TARIFFS_USER dans .env}
+      AUTH_TARIFS_SECRET: ${AUTH_TARIFS_SECRET:?Definir AUTH_TARIFS_SECRET dans .env}
+      TARIFS_CURRENCY: ${TARIFS_CURRENCY:-MAD}
+    depends_on:
+      db: {condition: service_healthy}
+    networks: [parking]

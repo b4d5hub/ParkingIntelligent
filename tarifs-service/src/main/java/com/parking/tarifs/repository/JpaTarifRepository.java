@@ -1,6 +1,7 @@
 package com.parking.tarifs.repository;
 
 import com.parking.tarifs.entity.TarifHoraire;
+import com.parking.tarifs.exception.TarifManquantException;
 import com.parking.tarifs.service.TarifRepository;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,8 +16,6 @@ import java.time.ZoneOffset;
 @Repository
 public class JpaTarifRepository implements TarifRepository {
 
-    private static final BigDecimal TARIF_PAR_DEFAUT = new BigDecimal("10.00");
-
     private final TarifHoraireJpaRepository jpaRepository;
 
     public JpaTarifRepository(TarifHoraireJpaRepository jpaRepository) {
@@ -26,9 +25,13 @@ public class JpaTarifRepository implements TarifRepository {
     @Override
     @Transactional(readOnly = true)
     public BigDecimal lireTarifCourant() {
-        return jpaRepository.findFirstByOrderByValableAPartirDescIdDesc()
+        OffsetDateTime maintenant = OffsetDateTime.now(ZoneOffset.UTC);
+        return jpaRepository
+                .findFirstByValableAPartirLessThanEqualOrderByValableAPartirDescIdDesc(maintenant)
                 .map(TarifHoraire::getPrixDh)
-                .orElse(TARIF_PAR_DEFAUT);
+                .orElseThrow(() -> new TarifManquantException(
+                        "Aucun tarif horaire n'est configuré en base. " +
+                        "Appliquer le script db/tarifs.sql pour initialiser la table."));
     }
 
     @Override

@@ -1,6 +1,7 @@
 # Parking intelligent
 
 Projet universitaire : quatre services backend, un frontend commun et une base PostgreSQL commune. Le dépôt contient le module Réservations et le premier service Abonnements (Nest.js). Places et Tarifs restent à intégrer par leurs responsables. Compose démarre Abonnements sur le réseau interne ; son intégration au routage frontend attend le raccordement de l'authentification.
+Projet universitaire : quatre services backend, un frontend commun et une base PostgreSQL commune. Réservations, Places et Tarifs ont une configuration Compose commune. La tarification des réservations dépend encore de l'intégration Abonnements.
 
 ## Démarrer l'installation locale Réservations
 
@@ -41,9 +42,27 @@ docker compose -f compose.reservations.yml run --rm --no-deps -it reservations j
 
 Le mot de passe est masqué et confirmé. Choisir les rôles nécessaires, sans attribuer ADMIN à tous les comptes. Aucun compte ni mot de passe prédéfini n'est créé. Le compte et les rôles sont enregistrés dans la base de cette installation.
 
-Les URL et identifiants Places/Tarifs sont vides par défaut. La connexion et la consultation fonctionnent sans ces services ; un devis, une réservation ou un calcul final dépendant d'un partenaire répond `503` tant qu'il n'est pas configuré. Aucun faux tarif ou fausse place n'est utilisé dans l'application. La liste des places appartient au module Places ; le formulaire actuel reçoit son identifiant.
+Les URL et identifiants Places/Tarifs sont vides par défaut. La connexion et la consultation fonctionnent sans ces services ; un devis, une réservation ou un calcul final dépendant d'un partenaire répond `503` tant qu'il n'est pas configuré. Aucun faux tarif ou fausse place n'est utilisé dans l'application. Le formulaire charge la liste réelle de Places et permet de choisir une place par son numéro. Sans Places, il explique l'indisponibilité et propose de réessayer.
+
+Pour assembler Réservations et Places, renseigner les deux comptes machine dans `.env`, puis utiliser `docker compose -f compose.reservations.yml -f compose.places.yml up --build -d`. Voir [PLACES_INTEGRATION.md](PLACES_INTEGRATION.md) pour les variables et les migrations. Cet assemblage active la synchronisation Places ; il ne fournit pas encore les API Tarifs.
 
 Pour arrêter : `docker compose -f compose.reservations.yml down` (sans `-v` : conserver les données).
+
+## Ajouter Tarifs
+
+Dans `.env`, renseigner `TARIFFS_API_USER` et `TARIFFS_API_PASSWORD` pour les appels de Réservations vers Tarifs. Pour la validation des sessions dans l'autre sens, renseigner `AUTH_TARIFFS_USER`, `AUTH_TARIFS_SECRET` et `AUTH_TARIFFS_PASSWORD_HASH`. L'empreinte Argon2 correspond au secret et doit être entourée d'apostrophes. Voir [le guide Tarifs](tarifs-service/docs/INTEGRATION_BADR.md) pour le contrat des API.
+
+```powershell
+docker compose -f compose.reservations.yml -f compose.places.yml -f compose.tarifs.yml up --build -d
+```
+
+Sur une base neuve, l'overlay charge `tarifs.sql` à l'initialisation. Sur une installation existante, sauvegarder la base, vérifier que `tarif_horaire` manque, puis appliquer le script sur la base Compose en cours d'exécution avant de démarrer Tarifs.
+
+```powershell
+Get-Content -Raw tarifs-service/src/main/resources/db/tarifs.sql | docker compose -f compose.reservations.yml exec -T db psql -U parking -d parking -v ON_ERROR_STOP=1 --single-transaction
+```
+
+Le frontend transmet `/api/tarifs/` à Tarifs. Les calculs internes restent accessibles sur le réseau Compose. Les devis et les compléments de départ renvoient une erreur tant que la recherche de réduction dans Abonnements reste indisponible.
 
 ## Vérifier le module
 
