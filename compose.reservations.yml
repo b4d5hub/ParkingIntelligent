@@ -19,6 +19,24 @@ services:
       timeout: 3s
       retries: 20
     networks: [parking]
+  auth:
+    build: ./auth-service
+    environment:
+      SPRING_PROFILES_ACTIVE: compose
+      DB_URL: jdbc:postgresql://db:5432/parking
+      DB_USER: parking
+      DB_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD dans .env}
+      AUTH_PLACES_USER: ${AUTH_PLACES_USER:-}
+      AUTH_PLACES_PASSWORD_HASH: ${AUTH_PLACES_PASSWORD_HASH:-}
+      AUTH_TARIFFS_USER: ${AUTH_TARIFFS_USER:-}
+      AUTH_TARIFFS_PASSWORD_HASH: ${AUTH_TARIFFS_PASSWORD_HASH:-}
+      AUTH_RESERVATIONS_USER: ${AUTH_RESERVATIONS_USER:-}
+      AUTH_RESERVATIONS_PASSWORD_HASH: ${AUTH_RESERVATIONS_PASSWORD_HASH:-}
+      AUTH_SUBSCRIPTIONS_USER: ${AUTH_SUBSCRIPTIONS_USER:-}
+      AUTH_SUBSCRIPTIONS_PASSWORD_HASH: ${AUTH_SUBSCRIPTIONS_PASSWORD_HASH:-}
+    depends_on:
+      db: {condition: service_healthy}
+    networks: [parking]
   reservations:
     build: ./reservations-service
     environment:
@@ -56,7 +74,7 @@ services:
   frontend:
     build: ./frontend
     ports: ["127.0.0.1:${FRONTEND_PORT:-8080}:8080"]
-    depends_on: [reservations]
+    depends_on: [reservations, auth]
     read_only: true
     tmpfs: [/tmp]
     networks: [parking]
