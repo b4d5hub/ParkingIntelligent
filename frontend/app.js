@@ -24,6 +24,7 @@ function signedOut() {
   $('driver-map').replaceChildren(); $('agent-map').replaceChildren();
   $('selected-place').textContent = '—'; $('quote-amount').textContent = '—'; quotedBooking = undefined;
   $('places-status').textContent = '';
+  for (const view of ['driver', 'history', 'subscriptions', 'agent', 'admin']) $(view + '-panel').hidden = true;
   for (const button of document.querySelectorAll('button')) { activeActions.delete(button); button.disabled = false; }
   updateBookingButtons();
 }
@@ -75,35 +76,56 @@ function clearQuote() {
 async function enter(current) {
   user = current; $('display-name').textContent = current.displayName;
   $('identity').hidden = false; $('login-panel').hidden = true; $('workspace').hidden = false;
-  $('driver-tab').hidden = !user.roles.includes('CONDUCTEUR'); $('agent-tab').hidden = !user.roles.includes('AGENT');
-  $('history-tab').hidden = $('driver-tab').hidden;
+  const isDriver = user.roles.includes('CONDUCTEUR');
+  const isAgent = user.roles.includes('AGENT');
+  const isAdmin = user.roles.includes('ADMIN');
+
+  $('driver-tab').hidden = !isDriver;
+  $('history-tab').hidden = !isDriver;
+  $('subscriptions-tab').hidden = !isDriver;
+  $('agent-tab').hidden = !isAgent;
+  $('admin-tab').hidden = !isAdmin;
+
   const now = new Date(), tomorrow = new Date(now.getTime() + 86_400_000);
   const start = new Date(Math.ceil((now.getTime() + 60_000) / 900_000) * 900_000);
   $('booking-form').elements.debutPrevu.value = localDate(start);
   $('booking-form').elements.finPrevue.value = localDate(new Date(start.getTime() + 7_200_000));
   $('operations-form').elements.start.value = localDate(new Date(now.getFullYear(), now.getMonth(), now.getDate()));
   $('operations-form').elements.end.value = localDate(new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate()));
-  if (user.roles.includes('CONDUCTEUR')) await show('driver');
-  else if (user.roles.includes('AGENT')) await show('agent');
+
+  if (isDriver) await show('driver');
+  else if (isAgent) await show('agent');
+  else if (isAdmin) await show('admin');
   else {
-    for (const panel of ['driver', 'history', 'agent']) $(panel + '-panel').hidden = true;
+    for (const panel of ['driver', 'history', 'subscriptions', 'agent', 'admin']) $(panel + '-panel').hidden = true;
     $('page-title').textContent = 'Votre espace';
-    notice('Ce compte ne possède pas de rôle conducteur ou agent.');
+    notice("Ce compte ne possède aucun rôle d'accès (conducteur, agent ou administrateur).");
   }
 }
 async function show(selected) {
   mode = selected;
-  for (const view of ['driver', 'history', 'agent']) {
+  for (const view of ['driver', 'history', 'subscriptions', 'agent', 'admin']) {
     $(view + '-panel').hidden = view !== mode;
     const tab = $(view + '-tab');
     tab.classList.toggle('active', view === mode);
     if (view === mode) tab.setAttribute('aria-current', 'page'); else tab.removeAttribute('aria-current');
   }
-  $('page-title').textContent = ({ driver: 'Réserver une place', history: 'Mes réservations', agent: 'Arrivées et départs' })[mode];
+  $('page-title').textContent = ({
+    driver: 'Réserver une place',
+    history: 'Mes réservations',
+    subscriptions: 'Mes abonnements',
+    agent: 'Arrivées et départs',
+    admin: 'Administration du parking'
+  })[mode] || 'Votre espace';
+
   if (selected === 'driver') await loadPlaces();
   else if (selected === 'history') await load('driver');
-  else await Promise.all([load('agent'), loadPlaces()]);
+  else if (selected === 'agent') await Promise.all([load('agent'), loadPlaces()]);
+  else if (selected === 'admin') await loadAdmin();
+  else if (selected === 'subscriptions') await loadSubscriptions();
 }
+async function loadAdmin() {}
+async function loadSubscriptions() {}
 async function loadPlaces() {
   const revision = sessionRevision(), request = ++placeRequest;
   const status = $(mode === 'agent' ? 'agent-places-status' : 'places-status');
@@ -332,7 +354,7 @@ $('booking-form').addEventListener('submit', event => {
     check(); notice(`Réservation ${reservation.id} confirmée. Paiement du créneau simulé, sans remboursement.`);
   });
 });
-for (const view of ['driver', 'history', 'agent']) $(view + '-tab').addEventListener('click', event => action(event.currentTarget, () => show(view)));
+for (const view of ['driver', 'history', 'subscriptions', 'agent', 'admin']) $(view + '-tab').addEventListener('click', event => action(event.currentTarget, () => show(view)));
 for (const role of ['driver', 'agent']) {
   for (const direction of ['previous', 'next']) $(direction + '-' + role).addEventListener('click', async () => {
     const revision = sessionRevision();
