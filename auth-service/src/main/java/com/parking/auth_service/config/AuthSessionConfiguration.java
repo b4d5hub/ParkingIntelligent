@@ -2,9 +2,11 @@ package com.parking.auth_service.config;
 
 import com.parking.auth_service.repository.JdbcAuthAccountRepository;
 import com.parking.auth_service.security.AuthSessionPolicy;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.core.env.Environment;
 import org.springframework.session.jdbc.config.annotation.web.http.EnableJdbcHttpSession;
 import org.springframework.session.web.http.CookieSerializer;
@@ -15,6 +17,8 @@ import java.time.Clock;
 import java.time.Duration;
 
 @Configuration(proxyBeanMethods = false)
+@ConditionalOnWebApplication
+@Profile("!provision")
 @EnableJdbcHttpSession(maxInactiveIntervalInSeconds = 1800)
 public class AuthSessionConfiguration {
 

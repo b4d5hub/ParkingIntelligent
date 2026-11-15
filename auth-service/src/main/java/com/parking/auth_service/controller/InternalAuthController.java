@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpStatus;
@@ -29,6 +30,7 @@ import java.time.Instant;
 import java.util.Set;
 
 @RestController
+@ConditionalOnWebApplication
 @RequestMapping("/internal/auth")
 public class InternalAuthController {
 
