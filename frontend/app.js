@@ -125,7 +125,24 @@ async function show(selected) {
   else if (selected === 'subscriptions') await loadSubscriptions();
 }
 async function loadAdmin() {
-  await Promise.all([loadAdminPlaces()]);
+  await Promise.all([loadAdminPlaces(), loadHourlyRate()]);
+}
+async function loadHourlyRate() {
+  const revision = sessionRevision();
+  const display = $('current-hourly-rate');
+  display.textContent = '…';
+  try {
+    const data = await api('/api/tarifs/hourly');
+    assertCurrentSession(revision);
+    if (!data || typeof data.prixDh !== 'number') throw new Error('Format de tarif invalide');
+    display.textContent = `${money(data.prixDh, data.currency || 'MAD')} / h`;
+    const input = $('update-tariff-form').elements.prixDh;
+    if (input && !activeActions.has($('update-tariff-btn'))) input.value = data.prixDh;
+  } catch (error) {
+    if (error instanceof StaleSessionError || !isCurrentSession(revision)) throw error;
+    display.textContent = 'Indisponible';
+    if (error.status === 401) throw error;
+  }
 }
 async function loadAdminPlaces() {
   const revision = sessionRevision();
@@ -427,6 +444,22 @@ for (const role of ['driver', 'agent']) {
 $('refresh-driver').addEventListener('click', event => action(event.currentTarget, () => load('driver')));
 $('refresh-places').addEventListener('click', event => action(event.currentTarget, () => loadPlaces()));
 $('refresh-admin-places').addEventListener('click', event => action(event.currentTarget, () => loadAdminPlaces()));
+$('refresh-tariff').addEventListener('click', event => action(event.currentTarget, () => loadHourlyRate()));
+$('update-tariff-form').addEventListener('submit', event => {
+  event.preventDefault();
+  action($('update-tariff-btn'), async check => {
+    const form = event.currentTarget;
+    const value = parseFloat(form.elements.prixDh.value);
+    if (isNaN(value) || value <= 0) throw new Error('Le tarif horaire doit être un nombre strictement positif.');
+    const updated = await api('/api/tarifs/hourly', {
+      method: 'PUT',
+      body: { prixDh: value }
+    });
+    check();
+    notice(`Tarif horaire modifié : ${money(updated.prixDh, updated.currency || 'MAD')} / h.`);
+    $('current-hourly-rate').textContent = `${money(updated.prixDh, updated.currency || 'MAD')} / h`;
+  });
+});
 $('add-place-form').addEventListener('submit', event => {
   event.preventDefault();
   action($('add-place-btn'), async check => {

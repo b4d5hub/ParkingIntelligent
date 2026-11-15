@@ -116,7 +116,22 @@
             </label>
             <button type="submit" id="add-place-btn">Ajouter la place</button>
           </form>
-          <div id="admin-tariff-section"></div>
+          <div id="admin-tariff-section" class="card-section">
+            <div class="section-heading">
+              <h2>Tarif horaire</h2>
+              <button type="button" id="refresh-tariff" class="quiet">Actualiser</button>
+            </div>
+            <div class="tariff-display">
+              <span class="muted">Tarif actuel</span>
+              <strong id="current-hourly-rate">—</strong>
+            </div>
+            <form id="update-tariff-form">
+              <label>Nouveau tarif horaire (MAD)
+                <input name="prixDh" type="number" step="0.01" min="0.01" max="10000" placeholder="Ex. 12.50" required>
+              </label>
+              <button type="submit" id="update-tariff-btn">Modifier le tarif</button>
+            </form>
+          </div>
         </section>
       </section>
     </section>

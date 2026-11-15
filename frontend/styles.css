@@ -163,6 +163,9 @@ input:not([type="hidden"]) {
 .admin-place-card button { min-height: 36px; padding: 6px 12px; font-size: .83rem; }
 .admin-controls form { margin-bottom: 24px; }
 .admin-controls form button { width: 100%; margin-top: 8px; }
+.card-section { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+.tariff-display { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 16px; padding: 10px 14px; background: #f2f1ed; border-radius: 8px; }
+.tariff-display strong { font-size: 1.1rem; }
 .badge.libre { background: #dfeddf; color: #173321; }
 .badge.occupee { background: #f8e4bd; color: #322313; }
 .badge.hors_service { background: #ecebe5; color: #5b615d; }
