@@ -5,6 +5,9 @@
 **/.idea/
 **/*.iml
 
+# VS Code local files
+**/.vscode/
+
 # Frontend dependencies and build output
 **/node_modules/
 **/dist/
