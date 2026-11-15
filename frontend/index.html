@@ -96,7 +96,29 @@
         </div>
       </section>
       <section id="subscriptions-panel" class="history" aria-label="Abonnements" hidden></section>
-      <section id="admin-panel" class="history" aria-label="Administration du parking" hidden></section>
+      <section id="admin-panel" class="dashboard" aria-label="Administration du parking" hidden>
+        <section aria-label="Gestion des places">
+          <div class="section-heading">
+            <div>
+              <h2>Places du parking</h2>
+              <p class="muted">Gérez la disponibilité des places et leur mise hors service.</p>
+            </div>
+            <button type="button" id="refresh-admin-places" class="quiet">Actualiser</button>
+          </div>
+          <p id="admin-places-status" class="muted" role="status"></p>
+          <div id="admin-places-list" class="admin-places-list"></div>
+        </section>
+        <section class="card admin-controls">
+          <h2>Ajouter une place</h2>
+          <form id="add-place-form">
+            <label>Numéro de la place
+              <input name="numero" type="text" maxlength="20" placeholder="Ex. P-101" required>
+            </label>
+            <button type="submit" id="add-place-btn">Ajouter la place</button>
+          </form>
+          <div id="admin-tariff-section"></div>
+        </section>
+      </section>
     </section>
   </main>
   <footer>Parking intelligent · Prototype universitaire · Paiement simulé</footer>

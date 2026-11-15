@@ -124,7 +124,69 @@ async function show(selected) {
   else if (selected === 'admin') await loadAdmin();
   else if (selected === 'subscriptions') await loadSubscriptions();
 }
-async function loadAdmin() {}
+async function loadAdmin() {
+  await Promise.all([loadAdminPlaces()]);
+}
+async function loadAdminPlaces() {
+  const revision = sessionRevision();
+  const status = $('admin-places-status');
+  const container = $('admin-places-list');
+  status.textContent = 'Chargement des places…';
+  try {
+    const list = await api('/api/places');
+    assertCurrentSession(revision);
+    container.replaceChildren();
+    if (!Array.isArray(list) || list.length === 0) {
+      status.textContent = 'Aucune place configurée.';
+      return;
+    }
+    status.textContent = `${list.length} place(s) enregistrée(s).`;
+    for (const place of list) {
+      const card = node('div', '', 'admin-place-card');
+      const info = node('div', '', 'admin-place-info');
+      info.appendChild(node('strong', `Place ${place.numero}`));
+      const badgeClass = place.statut === 'LIBRE' ? 'badge libre' : (place.statut === 'OCCUPEE' ? 'badge occupee' : 'badge hors_service');
+      const label = place.statut === 'LIBRE' ? 'En service' : (place.statut === 'OCCUPEE' ? 'Occupée' : 'Hors service');
+      info.appendChild(node('span', label, badgeClass));
+      card.appendChild(info);
+
+      if (place.statut === 'LIBRE') {
+        const toggleBtn = node('button', 'Mettre hors service', 'secondary');
+        toggleBtn.type = 'button';
+        toggleBtn.addEventListener('click', event => action(event.currentTarget, async () => {
+          await api(`/api/places/${encodeURIComponent(place.id)}/statut`, {
+            method: 'PATCH',
+            body: { statut: 'HORS_SERVICE' }
+          });
+          notice(`Place ${place.numero} mise hors service.`);
+          await loadAdminPlaces();
+        }));
+        card.appendChild(toggleBtn);
+      } else if (place.statut === 'HORS_SERVICE') {
+        const toggleBtn = node('button', 'Remettre en service', 'secondary');
+        toggleBtn.type = 'button';
+        toggleBtn.addEventListener('click', event => action(event.currentTarget, async () => {
+          await api(`/api/places/${encodeURIComponent(place.id)}/statut`, {
+            method: 'PATCH',
+            body: { statut: 'LIBRE' }
+          });
+          notice(`Place ${place.numero} remise en service.`);
+          await loadAdminPlaces();
+        }));
+        card.appendChild(toggleBtn);
+      } else {
+        const occBtn = node('button', 'Occupée', 'secondary');
+        occBtn.disabled = true;
+        card.appendChild(occBtn);
+      }
+      container.appendChild(card);
+    }
+  } catch (error) {
+    if (error instanceof StaleSessionError || !isCurrentSession(revision)) throw error;
+    status.textContent = 'Impossible de charger les places. Réessayez plus tard.';
+    if (error.status === 401) throw error;
+  }
+}
 async function loadSubscriptions() {}
 async function loadPlaces() {
   const revision = sessionRevision(), request = ++placeRequest;
@@ -364,6 +426,22 @@ for (const role of ['driver', 'agent']) {
 }
 $('refresh-driver').addEventListener('click', event => action(event.currentTarget, () => load('driver')));
 $('refresh-places').addEventListener('click', event => action(event.currentTarget, () => loadPlaces()));
+$('refresh-admin-places').addEventListener('click', event => action(event.currentTarget, () => loadAdminPlaces()));
+$('add-place-form').addEventListener('submit', event => {
+  event.preventDefault();
+  action($('add-place-btn'), async check => {
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    const numero = (values.get('numero') || '').trim();
+    if (!numero) throw new Error('Veuillez saisir un numéro de place.');
+    if (numero.length > 20) throw new Error('Le numéro de place ne doit pas dépasser 20 caractères.');
+    const created = await api('/api/places', { method: 'POST', body: { numero } });
+    check();
+    form.reset();
+    notice(`Place ${created.numero} ajoutée avec succès.`);
+    await loadAdminPlaces();
+  });
+});
 $('operations-form').addEventListener('submit', event => {
   event.preventDefault();
   pages.agent = 0;

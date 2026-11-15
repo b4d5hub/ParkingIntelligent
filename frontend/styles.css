@@ -157,6 +157,15 @@ input:not([type="hidden"]) {
 .filters label { margin: 0; }
 .notice { border: 1px solid #96b59d; border-radius: 9px; background: #e5efe5; padding: 12px 16px; margin-top: 12px; }
 .notice.error { border-color: #c99588; background: #f9e9e3; color: #782d21; }
+.admin-places-list { display: grid; gap: 8px; }
+.admin-place-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; flex-wrap: wrap; }
+.admin-place-info { display: flex; align-items: center; gap: 10px; }
+.admin-place-card button { min-height: 36px; padding: 6px 12px; font-size: .83rem; }
+.admin-controls form { margin-bottom: 24px; }
+.admin-controls form button { width: 100%; margin-top: 8px; }
+.badge.libre { background: #dfeddf; color: #173321; }
+.badge.occupee { background: #f8e4bd; color: #322313; }
+.badge.hors_service { background: #ecebe5; color: #5b615d; }
 footer { border-top: 1px solid var(--line); padding: 18px; text-align: center; color: var(--muted); font-size: .77rem; }
 @media (max-width: 850px) {
   .dashboard { grid-template-columns: minmax(0, 1fr); }
