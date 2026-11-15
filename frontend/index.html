@@ -95,7 +95,53 @@
           </section>
         </div>
       </section>
-      <section id="subscriptions-panel" class="history" aria-label="Abonnements" hidden></section>
+      <section id="subscriptions-panel" aria-label="Abonnements" hidden>
+        <section aria-label="Formules d'abonnement">
+          <div class="section-heading">
+            <div>
+              <h2>Formules disponibles</h2>
+              <p class="muted">Choisissez votre formule pour stationner en toute tranquillité.</p>
+            </div>
+          </div>
+          <div class="plans-grid">
+            <article class="plan-card">
+              <h3>Journalier</h3>
+              <p class="plan-price">40,00 MAD</p>
+              <p class="muted">Accès illimité pendant 24 heures.</p>
+              <button type="button" class="subscribe-btn" data-plan="DAILY">Souscrire</button>
+            </article>
+            <article class="plan-card">
+              <h3>Hebdomadaire</h3>
+              <p class="plan-price">180,00 MAD</p>
+              <p class="muted">Accès illimité pendant 7 jours.</p>
+              <button type="button" class="subscribe-btn" data-plan="WEEKLY">Souscrire</button>
+            </article>
+            <article class="plan-card featured">
+              <h3>Mensuel</h3>
+              <p class="plan-price">450,00 MAD</p>
+              <p class="muted">Accès illimité pendant 1 mois civil.</p>
+              <button type="button" class="subscribe-btn" data-plan="MONTHLY">Souscrire</button>
+            </article>
+            <article class="plan-card">
+              <h3>Annuel</h3>
+              <p class="plan-price">4 800,00 MAD</p>
+              <p class="muted">Accès illimité pendant 1 an complet.</p>
+              <button type="button" class="subscribe-btn" data-plan="ANNUAL">Souscrire</button>
+            </article>
+          </div>
+        </section>
+        <section class="history card-section" aria-label="Mes abonnements">
+          <div class="section-heading">
+            <div>
+              <h2>Mes abonnements</h2>
+              <p class="muted">Retrouvez vos abonnements actifs et passés.</p>
+            </div>
+            <button type="button" id="refresh-subscriptions" class="quiet">Actualiser</button>
+          </div>
+          <p id="subscriptions-status" class="muted" role="status"></p>
+          <div id="subscriptions-list" class="reservation-list"></div>
+        </section>
+      </section>
       <section id="admin-panel" class="dashboard" aria-label="Administration du parking" hidden>
         <section aria-label="Gestion des places">
           <div class="section-heading">

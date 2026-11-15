@@ -169,6 +169,15 @@ input:not([type="hidden"]) {
 .badge.libre { background: #dfeddf; color: #173321; }
 .badge.occupee { background: #f8e4bd; color: #322313; }
 .badge.hors_service { background: #ecebe5; color: #5b615d; }
+.plans-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin: 12px 0 24px; }
+.plan-card { display: flex; flex-direction: column; justify-content: space-between; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
+.plan-card.featured { border-color: #398250; box-shadow: 0 0 0 1px #398250; }
+.plan-card h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.plan-price { font-size: 1.45rem; font-weight: 700; margin: 4px 0 8px; color: var(--ink); }
+.plan-card button { width: 100%; margin-top: 14px; }
+.badge.active { background: #dfeddf; color: #173321; }
+.badge.pending_payment { background: #f8e4bd; color: #322313; }
+.badge.expired, .badge.cancelled { background: #ecebe5; color: #5b615d; }
 footer { border-top: 1px solid var(--line); padding: 18px; text-align: center; color: var(--muted); font-size: .77rem; }
 @media (max-width: 850px) {
   .dashboard { grid-template-columns: minmax(0, 1fr); }

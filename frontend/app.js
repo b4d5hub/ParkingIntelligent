@@ -7,6 +7,8 @@ let placeRequest = 0, quoteRevision = 0, quotedBooking, availabilityTimer;
 const pages = { driver: 0, agent: 0 };
 const activeActions = new WeakMap();
 const statusNames = { CONFIRMED: 'Confirmée', IN_PROGRESS: 'En cours', COMPLETED: 'Terminée', CANCELLED: 'Annulée', EXPIRED: 'Expirée' };
+const planNames = { DAILY: 'Journalier', WEEKLY: 'Hebdomadaire', MONTHLY: 'Mensuel', ANNUAL: 'Annuel' };
+const subStatusNames = { ACTIVE: 'Actif', PENDING_PAYMENT: 'En attente de paiement', EXPIRED: 'Expiré', CANCELLED: 'Annulé' };
 const date = value => value ? new Date(value).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
 function money(amount, currency) {
   if (amount === null || amount === undefined) return '—';
@@ -17,7 +19,7 @@ function notice(message = '', error = false) { $('notice').textContent = message
 function signedOut() {
   resetSession(); user = null; bookingAttempt = null; pages.driver = 0; pages.agent = 0;
   $('workspace').hidden = true; $('identity').hidden = true; $('login-panel').hidden = false;
-  $('driver-list').replaceChildren(); $('agent-list').replaceChildren(); $('display-name').textContent = '';
+  $('driver-list').replaceChildren(); $('agent-list').replaceChildren(); $('subscriptions-list').replaceChildren(); $('admin-places-list').replaceChildren(); $('display-name').textContent = '';
   $('booking-form').reset(); $('quote').textContent = ''; $('login-form').elements.password.value = '';
   places = []; agentReservations = []; availability.clear(); ++mapRevision; ++placeRequest;
   clearTimeout(availabilityTimer);
@@ -204,7 +206,42 @@ async function loadAdminPlaces() {
     if (error.status === 401) throw error;
   }
 }
-async function loadSubscriptions() {}
+async function loadSubscriptions() {
+  const revision = sessionRevision();
+  const status = $('subscriptions-status');
+  const container = $('subscriptions-list');
+  status.textContent = 'Chargement de vos abonnements…';
+  try {
+    const list = await api('/api/subscriptions/me');
+    assertCurrentSession(revision);
+    container.replaceChildren();
+    if (!Array.isArray(list) || list.length === 0) {
+      status.textContent = "Vous n'avez aucun abonnement pour le moment.";
+      return;
+    }
+    status.textContent = `${list.length} abonnement(s) enregistré(s).`;
+    for (const sub of list) {
+      const card = node('article', '', 'reservation');
+      const row = node('div', '', 'row');
+      row.appendChild(node('h3', `Abonnement ${planNames[sub.period] || sub.period}`));
+      const statusClass = sub.status === 'ACTIVE' ? 'badge active' : (sub.status === 'PENDING_PAYMENT' ? 'badge pending_payment' : 'badge expired');
+      row.appendChild(node('span', subStatusNames[sub.status] || sub.status, statusClass));
+      card.appendChild(row);
+
+      const priceP = node('p', `Montant : ${money(sub.price, sub.currency || 'MAD')}`);
+      card.appendChild(priceP);
+
+      const datesP = node('p', `Du ${date(sub.startsAt)} au ${date(sub.endsAt)}`, 'muted');
+      card.appendChild(datesP);
+
+      container.appendChild(card);
+    }
+  } catch (error) {
+    if (error instanceof StaleSessionError || !isCurrentSession(revision)) throw error;
+    status.textContent = 'Impossible de charger vos abonnements. Réessayez plus tard.';
+    if (error.status === 401) throw error;
+  }
+}
 async function loadPlaces() {
   const revision = sessionRevision(), request = ++placeRequest;
   const status = $(mode === 'agent' ? 'agent-places-status' : 'places-status');
@@ -444,6 +481,19 @@ for (const role of ['driver', 'agent']) {
 $('refresh-driver').addEventListener('click', event => action(event.currentTarget, () => load('driver')));
 $('refresh-places').addEventListener('click', event => action(event.currentTarget, () => loadPlaces()));
 $('refresh-admin-places').addEventListener('click', event => action(event.currentTarget, () => loadAdminPlaces()));
+$('refresh-subscriptions').addEventListener('click', event => action(event.currentTarget, () => loadSubscriptions()));
+for (const btn of document.querySelectorAll('.subscribe-btn')) {
+  btn.addEventListener('click', event => action(event.currentTarget, async check => {
+    const period = event.currentTarget.dataset.plan;
+    const result = await api('/api/subscriptions', {
+      method: 'POST',
+      body: { period }
+    });
+    check();
+    notice(`Abonnement ${planNames[period] || period} souscrit avec succès.`);
+    await loadSubscriptions();
+  }));
+}
 $('refresh-tariff').addEventListener('click', event => action(event.currentTarget, () => loadHourlyRate()));
 $('update-tariff-form').addEventListener('submit', event => {
   event.preventDefault();
