@@ -48,6 +48,13 @@ describe('SubscriptionsService', () => {
         expirationNotificationSentAt: null,
         createdAt: now,
       }) as SubscriptionEntity),
+      findAllPaginated: vi.fn(async (page: number, size: number, status?: any) => ({
+        content: [],
+        page,
+        size,
+        totalElements: 0,
+        totalPages: 0,
+      })),
     };
     priceRepository = {
       findActivePrice: vi.fn(async (period: SubscriptionPeriod) => ({ period, price: priceByPeriod[period], currency: 'MAD' })),
@@ -57,6 +64,16 @@ describe('SubscriptionsService', () => {
         { period: 'MONTHLY', price: '450.00', currency: 'MAD' },
         { period: 'ANNUAL', price: '4800.00', currency: 'MAD' },
       ]),
+      findAllPrices: vi.fn(async () => [
+        { period: 'DAILY', price: '40.00', currency: 'MAD', active: true },
+        { period: 'WEEKLY', price: '180.00', currency: 'MAD', active: false },
+      ]),
+      updatePrice: vi.fn(async (period: SubscriptionPeriod, price: string, active: boolean) => ({
+        period,
+        price,
+        currency: 'MAD',
+        active,
+      })),
     };
     service = new SubscriptionsService(repository, priceRepository, () => new Date(now));
   });
@@ -219,6 +236,39 @@ describe('SubscriptionsService', () => {
         new SubscriptionPaymentConflictError('Subscription is already cancelled.'),
       );
       await expect(service.cancel('sub-1', '42')).rejects.toBeInstanceOf(ConflictException);
+    });
+  });
+
+  describe('admin operations', () => {
+    it('getAllPlans returns all plans', async () => {
+      const plans = await service.getAllPlans();
+      expect(priceRepository.findAllPrices).toHaveBeenCalled();
+      expect(plans).toHaveLength(2);
+    });
+
+    it('updatePlan updates price and active status', async () => {
+      const updated = await service.updatePlan('DAILY', 50, false);
+      expect(priceRepository.updatePrice).toHaveBeenCalledWith('DAILY', '50.00', false);
+      expect(updated.price).toBe('50.00');
+    });
+
+    it('updatePlan rejects invalid period', async () => {
+      await expect(service.updatePlan('INVALID', 50, true)).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('updatePlan rejects negative price', async () => {
+      await expect(service.updatePlan('DAILY', -5, true)).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('findAllAdmin expires due subscriptions and returns paginated list', async () => {
+      const result = await service.findAllAdmin(0, 20, 'ACTIVE');
+      expect(repository.expireDueSubscriptions).toHaveBeenCalledWith(now);
+      expect(repository.findAllPaginated).toHaveBeenCalledWith(0, 20, 'ACTIVE');
+      expect(result.page).toBe(0);
+    });
+
+    it('findAllAdmin rejects invalid status', async () => {
+      await expect(service.findAllAdmin(0, 20, 'INVALID_STATUS')).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 });

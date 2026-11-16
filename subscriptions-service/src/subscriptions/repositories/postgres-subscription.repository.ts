@@ -2,9 +2,9 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Pool, type QueryResultRow } from 'pg';
 import { DATABASE_POOL } from '../../database/database.module';
 import { SubscriptionEntity } from '../entities/subscription.entity';
-import type { SubscriptionPeriod, SubscriptionPrice } from '../entities/subscription.entity';
+import type { SubscriptionPeriod, SubscriptionPrice, SubscriptionStatus } from '../entities/subscription.entity';
 import { SubscriptionNotFoundError, SubscriptionPaymentConflictError } from './subscription.repository';
-import type { NewSubscription, SubscriptionPriceRepository, SubscriptionRepository } from './subscription.repository';
+import type { NewSubscription, PaginatedSubscriptions, SubscriptionPriceRepository, SubscriptionRepository } from './subscription.repository';
 
 interface SubscriptionRow extends QueryResultRow {
   id: string; user_id: string; period: SubscriptionPeriod; starts_at: Date; ends_at: Date;
@@ -136,6 +136,82 @@ export class PostgresSubscriptionRepository implements SubscriptionRepository, S
        END, price ASC`,
     );
     return rows;
+  }
+
+  async findAllPrices(): Promise<SubscriptionPrice[]> {
+    const { rows } = await this.pool.query<{
+      period: SubscriptionPeriod;
+      price: string;
+      currency: string;
+      active: boolean;
+      updated_at: Date;
+    }>(
+      `SELECT period, price::text AS price, currency, active, updated_at
+       FROM subscription_prices
+       ORDER BY CASE period
+         WHEN 'DAILY' THEN 1
+         WHEN 'WEEKLY' THEN 2
+         WHEN 'MONTHLY' THEN 3
+         WHEN 'ANNUAL' THEN 4
+         ELSE 5
+       END, price ASC`,
+    );
+    return rows.map((r) => ({
+      period: r.period,
+      price: r.price,
+      currency: r.currency,
+      active: r.active,
+      updatedAt: r.updated_at,
+    }));
+  }
+
+  async updatePrice(period: SubscriptionPeriod, price: string, active: boolean): Promise<SubscriptionPrice> {
+    const { rows } = await this.pool.query<{
+      period: SubscriptionPeriod;
+      price: string;
+      currency: string;
+      active: boolean;
+      updated_at: Date;
+    }>(
+      `UPDATE subscription_prices
+       SET price = $2, active = $3, updated_at = CURRENT_TIMESTAMP
+       WHERE period = $1
+       RETURNING period, price::text AS price, currency, active, updated_at`,
+      [period, price, active],
+    );
+    if (!rows[0]) {
+      throw new SubscriptionNotFoundError(`Formule ${period} introuvable.`);
+    }
+    return {
+      period: rows[0].period,
+      price: rows[0].price,
+      currency: rows[0].currency,
+      active: rows[0].active,
+      updatedAt: rows[0].updated_at,
+    };
+  }
+
+  async findAllPaginated(page: number, size: number, status?: SubscriptionStatus): Promise<PaginatedSubscriptions> {
+    const offset = page * size;
+    const countSql = `SELECT count(*)::int AS total FROM subscriptions WHERE ($1::text IS NULL OR status = $1)`;
+    const countRes = await this.pool.query<{ total: number }>(countSql, [status ?? null]);
+    const totalElements = countRes.rows[0]?.total ?? 0;
+    const totalPages = Math.ceil(totalElements / size);
+
+    const dataSql = `
+      SELECT * FROM subscriptions
+      WHERE ($1::text IS NULL OR status = $1)
+      ORDER BY created_at DESC
+      LIMIT $2 OFFSET $3
+    `;
+    const { rows } = await this.pool.query<SubscriptionRow>(dataSql, [status ?? null, size, offset]);
+    return {
+      content: rows.map(mapEntity),
+      page,
+      size,
+      totalElements,
+      totalPages,
+    };
   }
 
   async cancel(id: string, userId: string): Promise<SubscriptionEntity> {

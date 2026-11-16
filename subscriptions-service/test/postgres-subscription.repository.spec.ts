@@ -183,4 +183,47 @@ describe('PostgresSubscriptionRepository payment transition', () => {
       expect(client.release).toHaveBeenCalledOnce();
     });
   });
+
+  describe('admin queries', () => {
+    it('findAllPrices returns all prices including inactive', async () => {
+      const pool = {
+        query: vi.fn().mockResolvedValue({
+          rows: [
+            { period: 'DAILY', price: '40.00', currency: 'MAD', active: true, updated_at: new Date() },
+            { period: 'WEEKLY', price: '180.00', currency: 'MAD', active: false, updated_at: new Date() },
+          ],
+        }),
+      } as unknown as Pool;
+      const repo = new PostgresSubscriptionRepository(pool);
+      const prices = await repo.findAllPrices();
+      expect(prices).toHaveLength(2);
+      expect(prices[1].active).toBe(false);
+    });
+
+    it('updatePrice updates price and active status', async () => {
+      const pool = {
+        query: vi.fn().mockResolvedValue({
+          rows: [
+            { period: 'DAILY', price: '45.00', currency: 'MAD', active: true, updated_at: new Date() },
+          ],
+        }),
+      } as unknown as Pool;
+      const repo = new PostgresSubscriptionRepository(pool);
+      const updated = await repo.updatePrice('DAILY', '45.00', true);
+      expect(updated.price).toBe('45.00');
+    });
+
+    it('findAllPaginated queries count and rows', async () => {
+      const pool = {
+        query: vi.fn()
+          .mockResolvedValueOnce({ rows: [{ total: 1 }] })
+          .mockResolvedValueOnce({ rows: [pendingRow] }),
+      } as unknown as Pool;
+      const repo = new PostgresSubscriptionRepository(pool);
+      const result = await repo.findAllPaginated(0, 20, 'PENDING_PAYMENT');
+      expect(result.totalElements).toBe(1);
+      expect(result.content).toHaveLength(1);
+      expect(result.page).toBe(0);
+    });
+  });
 });

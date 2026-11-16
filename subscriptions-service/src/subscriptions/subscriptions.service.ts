@@ -9,6 +9,7 @@ import {
   SubscriptionPaymentConflictError,
 } from './repositories/subscription.repository';
 import type {
+  PaginatedSubscriptions,
   SubscriptionPriceRepository,
   SubscriptionRepository,
 } from './repositories/subscription.repository';
@@ -57,6 +58,59 @@ export class SubscriptionsService {
 
   async getPlans(): Promise<SubscriptionPrice[]> {
     return this.prices.findAllActivePrices();
+  }
+
+  async getAllPlans(): Promise<SubscriptionPrice[]> {
+    return this.prices.findAllPrices();
+  }
+
+  async updatePlan(period: string, price: number, active: boolean): Promise<SubscriptionPrice> {
+    const validPeriods: SubscriptionPeriod[] = ['DAILY', 'WEEKLY', 'MONTHLY', 'ANNUAL'];
+    if (!validPeriods.includes(period as SubscriptionPeriod)) {
+      throw new BadRequestException({
+        code: 'INVALID_REQUEST',
+        message: `Période invalide : ${period}. Valeurs acceptées : DAILY, WEEKLY, MONTHLY, ANNUAL.`,
+      });
+    }
+    if (price === undefined || price === null || price < 0 || Number.isNaN(price)) {
+      throw new BadRequestException({
+        code: 'INVALID_REQUEST',
+        message: 'Le prix doit être un nombre supérieur ou égal à 0.',
+      });
+    }
+    if (typeof active !== 'boolean') {
+      throw new BadRequestException({
+        code: 'INVALID_REQUEST',
+        message: 'Le champ active doit être un booléen.',
+      });
+    }
+    try {
+      return await this.prices.updatePrice(period as SubscriptionPeriod, price.toFixed(2), active);
+    } catch (err) {
+      if (err instanceof SubscriptionNotFoundError) {
+        throw new NotFoundException({ code: 'NOT_FOUND', message: err.message });
+      }
+      throw err;
+    }
+  }
+
+  async findAllAdmin(page: number, size: number, status?: string): Promise<PaginatedSubscriptions> {
+    await this.subscriptions.expireDueSubscriptions(this.now());
+    if (page < 0) {
+      throw new BadRequestException({ code: 'INVALID_REQUEST', message: 'Le numéro de page ne peut pas être négatif.' });
+    }
+    if (status) {
+      const validStatuses = ['ACTIVE', 'PENDING_PAYMENT', 'EXPIRED', 'CANCELLED'];
+      if (!validStatuses.includes(status)) {
+        throw new BadRequestException({
+          code: 'INVALID_REQUEST',
+          message: `Statut invalide : ${status}. Valeurs acceptées : ACTIVE, PENDING_PAYMENT, EXPIRED, CANCELLED.`,
+        });
+      }
+    }
+    const effectiveSize = Math.max(1, Math.min(size || 20, 100));
+    const safePage = Math.max(0, page || 0);
+    return this.subscriptions.findAllPaginated(safePage, effectiveSize, status as any);
   }
 
   async cancel(id: string, userId: string): Promise<SubscriptionEntity> {

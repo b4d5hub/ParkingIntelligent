@@ -25,4 +25,6 @@ export interface SubscriptionPrice {
   period: SubscriptionPeriod;
   price: string;
   currency: string;
+  active?: boolean;
+  updatedAt?: Date;
 }

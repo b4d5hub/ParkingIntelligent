@@ -17,6 +17,14 @@ export interface NewSubscription {
   paymentReference?: string | null;
 }
 
+export interface PaginatedSubscriptions {
+  content: SubscriptionEntity[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
 export interface SubscriptionRepository {
   create(input: NewSubscription): Promise<SubscriptionEntity>;
   findByUserId(userId: string): Promise<SubscriptionEntity[]>;
@@ -27,9 +35,12 @@ export interface SubscriptionRepository {
   claimExpirationNotification(id: string, sentAt: Date): Promise<SubscriptionEntity | null>;
   hasActiveSubscription(userId: string, start: Date, end: Date): Promise<boolean>;
   cancel(id: string, userId: string): Promise<SubscriptionEntity>;
+  findAllPaginated(page: number, size: number, status?: SubscriptionStatus): Promise<PaginatedSubscriptions>;
 }
 
 export interface SubscriptionPriceRepository {
   findActivePrice(period: SubscriptionPeriod): Promise<SubscriptionPrice | null>;
   findAllActivePrices(): Promise<SubscriptionPrice[]>;
+  findAllPrices(): Promise<SubscriptionPrice[]>;
+  updatePrice(period: SubscriptionPeriod, price: string, active: boolean): Promise<SubscriptionPrice>;
 }

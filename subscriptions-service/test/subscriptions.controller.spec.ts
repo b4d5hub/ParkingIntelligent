@@ -27,6 +27,23 @@ describe('SubscriptionsController', () => {
         { period: 'DAILY', price: '40.00', currency: 'MAD' },
         { period: 'WEEKLY', price: '180.00', currency: 'MAD' },
       ] as SubscriptionPrice[]),
+      getAllPlans: vi.fn(async () => [
+        { period: 'DAILY', price: '40.00', currency: 'MAD', active: true },
+        { period: 'WEEKLY', price: '180.00', currency: 'MAD', active: false },
+      ] as SubscriptionPrice[]),
+      updatePlan: vi.fn(async (period: any, price: any, active: any) => ({
+        period,
+        price: price.toFixed ? price.toFixed(2) : String(price),
+        currency: 'MAD',
+        active,
+      })),
+      findAllAdmin: vi.fn(async (page: number, size: number, status?: string) => ({
+        content: [],
+        page,
+        size,
+        totalElements: 0,
+        totalPages: 0,
+      })),
       findMine: vi.fn(async (userId: string) => [
         {
           id: '10000000-0000-4000-8000-000000000001',
@@ -56,6 +73,29 @@ describe('SubscriptionsController', () => {
     expect(service.getPlans).toHaveBeenCalled();
     expect(plans).toHaveLength(2);
     expect(plans[0].period).toBe('DAILY');
+  });
+
+  it('GET /plans/all returns all prices including inactive', async () => {
+    const plans = await controller.getAllPlans();
+    expect(service.getAllPlans).toHaveBeenCalled();
+    expect(plans).toHaveLength(2);
+  });
+
+  it('PUT /plans/:period updates plan', async () => {
+    const res = await controller.updatePlan('DAILY', { price: 45, active: true });
+    expect(service.updatePlan).toHaveBeenCalledWith('DAILY', 45, true);
+    expect(res.price).toBe('45.00');
+  });
+
+  it('GET /admin returns paginated subscriptions', async () => {
+    const res = await controller.findAllAdmin('0', '10', 'ACTIVE');
+    expect(service.findAllAdmin).toHaveBeenCalledWith(0, 10, 'ACTIVE');
+    expect(res.page).toBe(0);
+    expect(res.size).toBe(10);
+  });
+
+  it('GET /admin throws on invalid page number', () => {
+    expect(() => controller.findAllAdmin('not-a-number', '10')).toThrow();
   });
 
   it('POST / creates an active subscription', async () => {
@@ -174,6 +214,56 @@ describe('SubscriptionsController', () => {
         SubscriptionsController.prototype.getPlans,
       );
       await expect(guard.canActivate(context)).rejects.toBeInstanceOf(UnauthorizedException);
+    });
+
+    it('allows ADMIN on getAllPlans endpoint', async () => {
+      const context = createMockContext(
+        { userId: '1', roles: ['ADMIN'] },
+        SubscriptionsController.prototype.getAllPlans,
+      );
+      expect(await guard.canActivate(context)).toBe(true);
+    });
+
+    it('forbids CONDUCTEUR on getAllPlans endpoint (403)', async () => {
+      const context = createMockContext(
+        { userId: '42', roles: ['CONDUCTEUR'] },
+        SubscriptionsController.prototype.getAllPlans,
+      );
+      await expect(guard.canActivate(context)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('allows ADMIN on updatePlan endpoint', async () => {
+      const context = createMockContext(
+        { userId: '1', roles: ['ADMIN'] },
+        SubscriptionsController.prototype.updatePlan,
+        true,
+      );
+      expect(await guard.canActivate(context)).toBe(true);
+    });
+
+    it('forbids CONDUCTEUR on updatePlan endpoint (403)', async () => {
+      const context = createMockContext(
+        { userId: '42', roles: ['CONDUCTEUR'] },
+        SubscriptionsController.prototype.updatePlan,
+        true,
+      );
+      await expect(guard.canActivate(context)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('allows ADMIN on findAllAdmin endpoint', async () => {
+      const context = createMockContext(
+        { userId: '1', roles: ['ADMIN'] },
+        SubscriptionsController.prototype.findAllAdmin,
+      );
+      expect(await guard.canActivate(context)).toBe(true);
+    });
+
+    it('forbids CONDUCTEUR on findAllAdmin endpoint (403)', async () => {
+      const context = createMockContext(
+        { userId: '42', roles: ['CONDUCTEUR'] },
+        SubscriptionsController.prototype.findAllAdmin,
+      );
+      await expect(guard.canActivate(context)).rejects.toBeInstanceOf(ForbiddenException);
     });
   });
 });
