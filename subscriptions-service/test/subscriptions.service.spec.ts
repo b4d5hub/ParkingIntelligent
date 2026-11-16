@@ -23,6 +23,7 @@ describe('SubscriptionsService', () => {
       expireDueSubscriptions: vi.fn(async () => 0),
       findExpiringBetween: vi.fn(async () => []),
       claimExpirationNotification: vi.fn(async () => null),
+      hasActiveSubscription: vi.fn(async () => false),
     };
     priceRepository = { findActivePrice: vi.fn(async (period: SubscriptionPeriod) => ({ period, price: priceByPeriod[period], currency: 'MAD' })) };
     service = new SubscriptionsService(repository, priceRepository, () => new Date(now));
@@ -100,5 +101,55 @@ describe('SubscriptionsService', () => {
   it('requires a payment reference before requesting activation', async () => {
     await expect(service.confirmPayment('sub-1', '  ')).rejects.toBeInstanceOf(BadRequestException);
     expect(repository.activateAfterPayment).not.toHaveBeenCalled();
+  });
+
+  describe('getDiscount', () => {
+    it('throws BadRequestException when userId is missing or blank', async () => {
+      await expect(service.getDiscount('')).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.getDiscount('   ')).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('throws BadRequestException for invalid date inputs', async () => {
+      await expect(service.getDiscount('42', 'not-a-date')).rejects.toBeInstanceOf(BadRequestException);
+      await expect(service.getDiscount('42', undefined, 'invalid-date')).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('throws BadRequestException if start date is after end date', async () => {
+      await expect(
+        service.getDiscount('42', '2026-02-05T12:00:00.000Z', '2026-02-01T12:00:00.000Z'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('returns 100% discount when an active subscription covers the window', async () => {
+      vi.mocked(repository.hasActiveSubscription).mockResolvedValue(true);
+      const res = await service.getDiscount(
+        '42',
+        '2026-02-01T10:00:00.000Z',
+        '2026-02-01T12:00:00.000Z',
+      );
+      expect(repository.expireDueSubscriptions).toHaveBeenCalledWith(now);
+      expect(repository.hasActiveSubscription).toHaveBeenCalledWith(
+        '42',
+        new Date('2026-02-01T10:00:00.000Z'),
+        new Date('2026-02-01T12:00:00.000Z'),
+      );
+      expect(res).toEqual({
+        userId: '42',
+        hasActiveSubscription: true,
+        discountPercentage: 100,
+      });
+    });
+
+    it('returns 0% discount when no active subscription covers the window', async () => {
+      vi.mocked(repository.hasActiveSubscription).mockResolvedValue(false);
+      const res = await service.getDiscount('42');
+      expect(repository.expireDueSubscriptions).toHaveBeenCalledWith(now);
+      expect(repository.hasActiveSubscription).toHaveBeenCalledWith('42', now, now);
+      expect(res).toEqual({
+        userId: '42',
+        hasActiveSubscription: false,
+        discountPercentage: 0,
+      });
+    });
   });
 });

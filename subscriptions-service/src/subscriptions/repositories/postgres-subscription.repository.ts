@@ -120,4 +120,15 @@ export class PostgresSubscriptionRepository implements SubscriptionRepository, S
     );
     return rows[0] ?? null;
   }
+
+  async hasActiveSubscription(userId: string, start: Date, end: Date): Promise<boolean> {
+    const { rows } = await this.pool.query(
+      `SELECT 1 FROM subscriptions
+       WHERE user_id = $1 AND status = 'ACTIVE'
+         AND starts_at <= $2 AND ends_at >= $3
+       LIMIT 1`,
+      [userId, start, end],
+    );
+    return rows.length > 0;
+  }
 }

@@ -63,4 +63,17 @@ describe('PostgresSubscriptionRepository payment transition', () => {
     await expect(repository.activateAfterPayment(pendingRow.id, 'pay-123')).rejects.toThrow('not awaiting payment');
     expect(client.release).toHaveBeenCalledOnce();
   });
+
+  it('checks for active subscription covering requested interval', async () => {
+    const pool = { query: vi.fn().mockResolvedValue({ rows: [{ 1: 1 }] }) } as unknown as Pool;
+    const repo = new PostgresSubscriptionRepository(pool);
+    const start = new Date('2026-04-01T10:00:00.000Z');
+    const end = new Date('2026-04-01T12:00:00.000Z');
+    const hasActive = await repo.hasActiveSubscription('42', start, end);
+    expect(hasActive).toBe(true);
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT 1 FROM subscriptions'),
+      ['42', start, end],
+    );
+  });
 });

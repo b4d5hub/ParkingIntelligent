@@ -88,4 +88,48 @@ export class SubscriptionsService {
       && at.getTime() >= subscription.endsAt.getTime() - NOTICE_MS
       && at.getTime() < subscription.endsAt.getTime();
   }
+
+  async getDiscount(
+    userId?: string,
+    startStr?: string,
+    endStr?: string,
+  ): Promise<{ userId: string; hasActiveSubscription: boolean; discountPercentage: number }> {
+    if (!userId || !userId.trim()) {
+      throw new BadRequestException('userId is required');
+    }
+    const currentTime = this.now();
+    await this.subscriptions.expireDueSubscriptions(currentTime);
+
+    let start: Date = currentTime;
+    let end: Date = currentTime;
+
+    if (startStr) {
+      start = new Date(startStr);
+      if (Number.isNaN(start.getTime())) {
+        throw new BadRequestException('Invalid start date');
+      }
+    }
+    if (endStr) {
+      end = new Date(endStr);
+      if (Number.isNaN(end.getTime())) {
+        throw new BadRequestException('Invalid end date');
+      }
+    }
+    if (startStr && !endStr) {
+      end = start;
+    }
+    if (!startStr && endStr) {
+      start = end;
+    }
+    if (start.getTime() > end.getTime()) {
+      throw new BadRequestException('start date must be before or equal to end date');
+    }
+
+    const hasActive = await this.subscriptions.hasActiveSubscription(userId.trim(), start, end);
+    return {
+      userId: userId.trim(),
+      hasActiveSubscription: hasActive,
+      discountPercentage: hasActive ? 100 : 0,
+    };
+  }
 }

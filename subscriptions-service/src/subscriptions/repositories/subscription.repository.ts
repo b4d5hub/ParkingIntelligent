@@ -23,6 +23,7 @@ export interface SubscriptionRepository {
   expireDueSubscriptions(at: Date): Promise<number>;
   findExpiringBetween(from: Date, through: Date): Promise<SubscriptionEntity[]>;
   claimExpirationNotification(id: string, sentAt: Date): Promise<SubscriptionEntity | null>;
+  hasActiveSubscription(userId: string, start: Date, end: Date): Promise<boolean>;
 }
 
 export interface SubscriptionPriceRepository {
