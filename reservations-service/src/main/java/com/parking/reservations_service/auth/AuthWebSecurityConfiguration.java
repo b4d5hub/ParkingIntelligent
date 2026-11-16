@@ -35,6 +35,7 @@ public class AuthWebSecurityConfiguration {
                         .requestMatchers(HttpMethod.GET, "/api/reservations/operations").hasRole("AGENT")
                         .requestMatchers(HttpMethod.POST, "/api/reservations/*/arrival", "/api/reservations/*/departure").hasRole("AGENT")
                         .requestMatchers(HttpMethod.GET, "/api/reservations/availability").permitAll()
+                        .requestMatchers("/api/reservations/admin", "/api/reservations/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/reservations", "/api/reservations/**").hasRole("CONDUCTEUR")
                         .requestMatchers("/internal/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()

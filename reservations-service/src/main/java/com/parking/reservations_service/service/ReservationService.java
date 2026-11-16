@@ -5,7 +5,9 @@ import com.parking.reservations_service.dto.*;
 import com.parking.reservations_service.integration.ParkingGateway;
 import com.parking.reservations_service.repository.ReservationRepository;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +42,110 @@ public class ReservationService {
     public ReservationResponse mineById(long driverId, long id) {
         return ReservationResponse.fromEntity(repository.findByIdAndConducteurId(id, driverId)
                 .orElseThrow(ReservationFailure::missing));
+    }
+
+    public ReservationPage adminList(int page, int size, String statusStr, OffsetDateTime from, OffsetDateTime to, Long placeId, Long conducteurId) {
+        validateDateRange(from, to);
+        if (page < 0) {
+            throw bad("Le numéro de page ne peut pas être négatif");
+        }
+        int effectiveSize = Math.max(1, Math.min(size <= 0 ? 20 : size, 100));
+
+        ReservationStatus status = null;
+        if (statusStr != null && !statusStr.isBlank()) {
+            try {
+                status = ReservationStatus.valueOf(statusStr.trim().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException e) {
+                throw bad("Statut de réservation invalide : " + statusStr);
+            }
+        }
+
+        final ReservationStatus finalStatus = status;
+        Specification<Reservation> spec = (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            if (finalStatus != null) {
+                predicates.add(cb.equal(root.get("statut"), finalStatus));
+            }
+            if (placeId != null) {
+                predicates.add(cb.equal(root.get("placeId"), placeId));
+            }
+            if (conducteurId != null) {
+                predicates.add(cb.equal(root.get("conducteurId"), conducteurId));
+            }
+            if (from != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("debutPrevu"), from));
+            }
+            if (to != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("debutPrevu"), to));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        Pageable pageable = PageRequest.of(page, effectiveSize, Sort.by(Sort.Direction.DESC, "debutPrevu", "id"));
+        return ReservationPage.from(repository.findAll(spec, pageable));
+    }
+
+    public ReservationStatsResponse adminStats(OffsetDateTime from, OffsetDateTime to) {
+        validateDateRange(from, to);
+
+        Map<String, Long> totalsByStatus = new LinkedHashMap<>();
+        for (ReservationStatus s : ReservationStatus.values()) {
+            totalsByStatus.put(s.name(), 0L);
+        }
+
+        List<Object[]> statusRows = repository.countByStatusNative(from, to);
+        if (statusRows != null) {
+            for (Object[] row : statusRows) {
+                if (row != null && row.length >= 2 && row[0] != null && row[1] != null) {
+                    totalsByStatus.put(row[0].toString(), ((Number) row[1]).longValue());
+                }
+            }
+        }
+
+        BigDecimal revenue = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        long completedCount = 0L;
+        double avgDurationMinutes = 0.0;
+
+        List<Object[]> statsRows = repository.computeStatsNative(from, to);
+        if (statsRows != null && !statsRows.isEmpty()) {
+            Object[] row = statsRows.get(0);
+            if (row != null && row.length >= 3) {
+                if (row[0] != null) {
+                    revenue = row[0] instanceof BigDecimal bd ? bd.setScale(2, RoundingMode.HALF_UP)
+                            : new BigDecimal(row[0].toString()).setScale(2, RoundingMode.HALF_UP);
+                }
+                if (row[1] != null) {
+                    completedCount = ((Number) row[1]).longValue();
+                }
+                if (row[2] != null) {
+                    avgDurationMinutes = ((Number) row[2]).doubleValue();
+                }
+            }
+        }
+
+        double roundedMinutes = Math.round(avgDurationMinutes * 100.0) / 100.0;
+        double roundedSeconds = Math.round(avgDurationMinutes * 60.0 * 100.0) / 100.0;
+
+        return new ReservationStatsResponse(
+                totalsByStatus,
+                revenue,
+                completedCount,
+                completedCount,
+                roundedMinutes,
+                roundedSeconds,
+                roundedMinutes
+        );
+    }
+
+    private void validateDateRange(OffsetDateTime from, OffsetDateTime to) {
+        if (from != null && to != null) {
+            if (from.isAfter(to)) {
+                throw bad("La date 'from' doit être antérieure ou égale à la date 'to'");
+            }
+            if (Duration.between(from, to).toDays() > 366) {
+                throw bad("La plage de dates ne peut pas dépasser 366 jours");
+            }
+        }
     }
 
     public ReservationPage operations(OffsetDateTime start, OffsetDateTime end, int page, int size) {
