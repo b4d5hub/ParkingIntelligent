@@ -90,7 +90,10 @@ public class InternalAuthController {
                 }
             };
             String resolved = new XorCsrfTokenRequestAttributeHandler().resolveCsrfTokenValue(wrapper, token);
-            if (resolved == null || !MessageDigest.isEqual(token.getToken().getBytes(StandardCharsets.UTF_8), resolved.getBytes(StandardCharsets.UTF_8))) {
+            if (resolved == null) {
+                resolved = body.csrfToken();
+            }
+            if (!MessageDigest.isEqual(token.getToken().getBytes(StandardCharsets.UTF_8), resolved.getBytes(StandardCharsets.UTF_8))) {
                 throw csrfFailure();
             }
         }
