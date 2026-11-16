@@ -1,18 +1,17 @@
 import { Global, Module } from '@nestjs/common';
 import { Pool } from 'pg';
+import { buildPoolConfig, DATABASE_POOL } from './database.config';
 
-export const DATABASE_POOL = Symbol('DATABASE_POOL');
+export { buildPoolConfig, DATABASE_POOL };
 
 @Global()
 @Module({
-  providers: [{
-    provide: DATABASE_POOL,
-    useFactory: () => new Pool({
-      connectionString: process.env.DATABASE_URL ?? process.env.DB_URL?.replace(/^jdbc:/, ''),
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-    }),
-  }],
+  providers: [
+    {
+      provide: DATABASE_POOL,
+      useFactory: () => new Pool(buildPoolConfig()),
+    },
+  ],
   exports: [DATABASE_POOL],
 })
 export class DatabaseModule {}
