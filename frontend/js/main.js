@@ -12,8 +12,12 @@ import { renderDriverReservePage } from './pages/driver-reserve.js';
 import { renderDriverHistoryPage } from './pages/driver-history.js';
 import { renderSubscriptionsPage } from './pages/subscriptions.js';
 import { renderAgentOperationsPage } from './pages/agent-operations.js';
+import { renderAdminDashboardPage } from './pages/admin-dashboard.js';
 import { renderAdminPlacesPage } from './pages/admin-places.js';
 import { renderAdminTariffsPage } from './pages/admin-tariffs.js';
+import { renderAdminSubscriptionsPage } from './pages/admin-subscriptions.js';
+import { renderAdminReservationsPage } from './pages/admin-reservations.js';
+import { renderAdminUsersPage } from './pages/admin-users.js';
 
 const identityContainer = document.getElementById('identity');
 const displayNameEl = document.getElementById('display-name');
@@ -33,8 +37,12 @@ function getNavigationTabs() {
     tabs.push({ route: ROUTES.OPERATIONS, label: 'Arrivées et départs' });
   }
   if (isAdmin()) {
+    tabs.push({ route: ROUTES.ADMIN_DASHBOARD, label: 'Tableau de bord' });
     tabs.push({ route: ROUTES.ADMIN_PLACES, label: 'Places' });
     tabs.push({ route: ROUTES.ADMIN_TARIFFS, label: 'Tarifs' });
+    tabs.push({ route: ROUTES.ADMIN_SUBSCRIPTIONS, label: 'Abonnements' });
+    tabs.push({ route: ROUTES.ADMIN_RESERVATIONS, label: 'Réservations' });
+    tabs.push({ route: ROUTES.ADMIN_USERS, label: 'Utilisateurs' });
   }
   return tabs;
 }
@@ -114,12 +122,28 @@ function renderRoute(route) {
       pageContentEl.appendChild(renderAgentOperationsPage());
       break;
 
+    case ROUTES.ADMIN_DASHBOARD:
+      pageContentEl.appendChild(renderAdminDashboardPage());
+      break;
+
     case ROUTES.ADMIN_PLACES:
       pageContentEl.appendChild(renderAdminPlacesPage());
       break;
 
     case ROUTES.ADMIN_TARIFFS:
       pageContentEl.appendChild(renderAdminTariffsPage());
+      break;
+
+    case ROUTES.ADMIN_SUBSCRIPTIONS:
+      pageContentEl.appendChild(renderAdminSubscriptionsPage());
+      break;
+
+    case ROUTES.ADMIN_RESERVATIONS:
+      pageContentEl.appendChild(renderAdminReservationsPage());
+      break;
+
+    case ROUTES.ADMIN_USERS:
+      pageContentEl.appendChild(renderAdminUsersPage());
       break;
 
     case ROUTES.NO_ROLE:

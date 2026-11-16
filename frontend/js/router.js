@@ -9,8 +9,12 @@ export const ROUTES = {
   HISTORY: '#history',
   SUBSCRIPTIONS: '#subscriptions',
   OPERATIONS: '#operations',
+  ADMIN_DASHBOARD: '#admin-dashboard',
   ADMIN_PLACES: '#admin-places',
   ADMIN_TARIFFS: '#admin-tariffs',
+  ADMIN_SUBSCRIPTIONS: '#admin-subscriptions',
+  ADMIN_RESERVATIONS: '#admin-reservations',
+  ADMIN_USERS: '#admin-users',
   NO_ROLE: '#no-role'
 };
 
@@ -22,7 +26,7 @@ export function getDefaultRouteForUser() {
   if (!user) return ROUTES.LOGIN;
   if (isDriver()) return ROUTES.RESERVE;
   if (isAgent()) return ROUTES.OPERATIONS;
-  if (isAdmin()) return ROUTES.ADMIN_PLACES;
+  if (isAdmin()) return ROUTES.ADMIN_DASHBOARD;
   return ROUTES.NO_ROLE;
 }
 
@@ -38,7 +42,15 @@ export function isRouteAllowed(route) {
   if (route === ROUTES.OPERATIONS) {
     return isAgent();
   }
-  if ([ROUTES.ADMIN_PLACES, ROUTES.ADMIN_TARIFFS].includes(route)) {
+  const adminRoutes = [
+    ROUTES.ADMIN_DASHBOARD,
+    ROUTES.ADMIN_PLACES,
+    ROUTES.ADMIN_TARIFFS,
+    ROUTES.ADMIN_SUBSCRIPTIONS,
+    ROUTES.ADMIN_RESERVATIONS,
+    ROUTES.ADMIN_USERS
+  ];
+  if (adminRoutes.includes(route)) {
     return isAdmin();
   }
   return false;

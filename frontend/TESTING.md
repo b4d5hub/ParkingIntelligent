@@ -71,26 +71,83 @@ Ce document détaille les scénarios de test manuel pour vérifier chaque parcou
 
 1. **Connexion & Navigation** :
    * Se connecter avec `admin@parking.local`.
-   * Vérifier que seuls les 2 onglets administrateur sont affichés :
-     * `Places`
-     * `Tarifs`
+   * Vérifier que les **6 onglets administrateur** sont affichés et que l'utilisateur est redirigé par défaut vers le tableau de bord :
+     * `Tableau de bord` (`#admin-dashboard`)
+     * `Places` (`#admin-places`)
+     * `Tarifs` (`#admin-tariffs`)
+     * `Abonnements` (`#admin-subscriptions`)
+     * `Réservations` (`#admin-reservations`)
+     * `Utilisateurs` (`#admin-users`)
+   * Vérifier qu'aucun onglet conducteur ou agent n'apparaît.
 
-2. **Gestion des places (`#admin-places`)** :
+2. **Tableau de bord (`#admin-dashboard`)** :
+   * Consulter les 4 cartes métriques :
+     * **Places du parking** : nombre total, taux d'occupation calculé, barre de répartition pure CSS (vert pour libre, bleu pour réservée, ambre pour occupée, rouge pour hors service) et détails par statut.
+     * **Chiffre d'affaires** : montant total perçu en MAD sur la période (somme `booking_paid + extra_paid`), nombre de réservations terminées et durée moyenne de stationnement.
+     * **Réservations** : volume total sur la période sélectionnée avec barre CSS de répartition par statut (terminées, en cours, confirmées, annulées, expirées).
+     * **Abonnements** : nombre d'abonnements actifs, total souscrit et barre CSS d'état (actifs, en attente, expirés, annulés).
+   * Changer le filtre de période ("7 derniers jours", "Aujourd'hui", "Tout l'historique", ou "Personnalisée") et cliquer sur "Actualiser les données" : les métriques s'actualisent sans recharger la page.
+
+3. **Gestion des places (`#admin-places`)** :
    * Consulter la liste des places enregistrées avec leur numéro et statut ("En service", "Hors service", "Occupée").
    * **Ajout d'une place** :
      * Saisir un numéro unique (ex. `B-201`) dans le formulaire et valider.
      * La place s'ajoute immédiatement à la liste.
    * **Mise hors service / Remise en service** :
-     * Cliquer sur "Mettre hors service" sur une place libre.
-     * Son badge devient "Hors service" et le bouton devient "Remettre en service".
-     * Cliquer sur "Remettre en service" : elle redevient libre.
-     * Si une place est occupée ou réservée, le bouton affiche son état et empêche la mise hors service.
+     * Cliquer sur "Mettre hors service" sur une place libre : le statut passe à "Hors service".
+     * Cliquer sur "Remettre en service" : elle redevient disponible.
 
-3. **Gestion des tarifs horaires (`#admin-tariffs`)** :
-   * Vérifier l'affichage du tarif horaire actuel (ex. `10,00 MAD / h`).
-   * Saisir un nouveau tarif strictement positif (ex. `15.00`) et valider.
-   * Un toast de succès confirme la mise à jour et le tarif affiché passe immédiatement à `15,00 MAD / h`.
-   * Tenter de saisir `0` ou un nombre négatif : le formulaire bloque la saisie.
+4. **Gestion des tarifs horaires et historique (`#admin-tariffs`)** :
+   * Vérifier l'affichage du tarif horaire actuel en vigueur (ex. `10,00 MAD / h`).
+   * **Modification du tarif** :
+     * Saisir un nouveau montant positif (ex. `12.50`) et valider.
+     * Un toast confirme la modification et le tarif courant s'actualise.
+   * **Historique des tarifs** :
+     * Sous le formulaire, consulter la table paginée de l'historique des tarifs (colonnes : Tarif, Valable à partir du, Auteur, Enregistré le).
+     * Vérifier que la modification effectuée apparaît en tête de liste (tri antéchronologique).
+     * Tester la pagination (boutons "← Précédent" / "Suivant →").
+
+5. **Gestion des formules et abonnements (`#admin-subscriptions`)** :
+   * **Formules d'abonnement** :
+     * Consulter les 4 formules tarifaires (Journalier, Hebdomadaire, Mensuel, Annuel).
+     * Pour une formule (ex. Journalier), ajuster le tarif ou basculer la case "Formule active" et cliquer sur "Enregistrer".
+     * Vérifier le toast de confirmation de mise à jour.
+   * **Souscriptions conducteurs** :
+     * Consulter la table des souscriptions conducteurs (colonnes : ID / Référence, Utilisateur, Formule, Statut avec badge, Début, Fin, Montant).
+     * Filtrer par statut via le menu déroulant (Tous, Actifs, En attente de paiement, Expirés, Annulés) : la table se recharge instantanément.
+     * Tester la pagination de la liste.
+
+6. **Consultation et filtres des réservations (`#admin-reservations`)** :
+   * Consulter l'ensemble des réservations du système sous forme de table (colonnes : ID, Conducteur, Place, Début prévu, Fin prévue, Statut avec badge de `labels.js`, Arrivée réelle, Départ réel, Montant).
+   * **Filtres multicritères** :
+     * Filtrer par statut (ex. "CONFIRMED" ou "COMPLETED").
+     * Filtrer par dates "Du" et "Au". Vérifier que si la date "Du" est postérieure à la date "Au", un message d'erreur est affiché.
+     * Filtrer par identifiant de place ou de conducteur.
+     * Cliquer sur "Appliquer les filtres" puis tester le bouton "Réinitialiser".
+   * Tester la pagination des réservations.
+
+7. **Gestion des utilisateurs (`#admin-users`)** :
+   * **Consultation et recherche** :
+     * Consulter la liste des comptes avec colonnes : Utilisateur (Nom + Email), Rôles (badges colorés), Statut (Actif en vert / Désactivé en neutre), Créé le, Actions.
+     * Tester la recherche textuelle (par nom ou e-mail) et la pagination.
+   * **Création d'un utilisateur ("+ Nouvel utilisateur")** :
+     * Cliquer sur "+ Nouvel utilisateur" : la fenêtre modale accessible s'ouvre.
+     * Renseigner l'adresse e-mail, le nom d'affichage, un mot de passe d'au moins 12 caractères et cocher au moins un rôle (`Conducteur`, `Agent`, `Administrateur`).
+     * Valider : l'utilisateur est créé activé et apparaît dans la liste.
+     * Tester la connexion avec le compte nouvellement créé pour confirmer son bon fonctionnement.
+   * **Activation / Désactivation d'un utilisateur** :
+     * Sur un compte tiers, cliquer sur "Désactiver" : une modale de confirmation demande confirmation.
+     * Confirmer : le badge de statut passe immédiatement à "Désactivé".
+     * Vérifier que si cet utilisateur avait une session ouverte, sa prochaine requête est rejetée en 401 et il est déconnecté.
+     * Cliquer sur "Activer" : le compte redevient "Actif".
+   * **Modification des rôles** :
+     * Cliquer sur "Rôles" pour un utilisateur : la modale permet d'ajouter ou retirer des rôles avec cases à cocher.
+     * Valider : les rôles s'actualisent immédiatement.
+   * **Réinitialisation du mot de passe** :
+     * Cliquer sur "Mot de passe" : saisir un nouveau mot de passe d'au moins 12 caractères et valider.
+   * **Protection du propre compte administrateur** :
+     * Sur la ligne de l'administrateur actuellement connecté (`admin@parking.local`), vérifier que les boutons "Désactiver" et "Rôles" sont désactivés avec infobulle explicative.
+     * Tenter une action interdite via l'API : l'application capture le retour 409 et affiche explicitement le message d'erreur du backend en français.
 
 ---
 
@@ -99,15 +156,12 @@ Ce document détaille les scénarios de test manuel pour vérifier chaque parcou
 1. **Connexion** :
    * Se connecter avec `super@parking.local`.
 2. **Accès global** :
-   * Vérifier que **tous les onglets** sont visibles et accessibles simultanément :
-     * `Réserver une place`
-     * `Mes réservations`
-     * `Abonnements`
-     * `Arrivées et départs`
-     * `Places`
-     * `Tarifs`
+   * Vérifier que **tous les onglets** de l'ensemble des rôles sont visibles et accessibles simultanément :
+     * *Espace Conducteur* : `Réserver une place`, `Mes réservations`, `Abonnements`
+     * *Espace Agent* : `Arrivées et départs`
+     * *Espace Administrateur* : `Tableau de bord`, `Places`, `Tarifs`, `Abonnements`, `Réservations`, `Utilisateurs`
 3. **Parcours croisé** :
-   * Modifier le tarif dans "Tarifs" (ex. passer à `20,00 MAD / h`).
+   * Modifier le tarif horaire dans "Tarifs" (ex. passer à `20,00 MAD / h`).
    * Basculer sur "Réserver une place" et demander un devis pour 2 heures : constater que le devis reflète immédiatement le nouveau tarif de 20 DH/h (ex. 40 DH).
 
 ---

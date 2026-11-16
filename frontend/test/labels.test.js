@@ -8,7 +8,9 @@ import {
   getPlaceStatusInfo,
   getSubscriptionStatusInfo,
   getSubscriptionPeriodLabel,
-  getVehicleTypeLabel
+  getVehicleTypeLabel,
+  getUserRoleInfo,
+  getUserStatusInfo
 } from '../js/ui/labels.js';
 
 test('labels: statut de réservation', () => {
@@ -77,4 +79,22 @@ test('labels: type de véhicule', () => {
   assert.equal(getVehicleTypeLabel('VOITURE'), 'Voiture');
   assert.equal(getVehicleTypeLabel('MOTO'), 'Deux-roues');
   assert.equal(getVehicleTypeLabel('CAMION'), 'CAMION');
+});
+
+test('labels: rôles utilisateur', () => {
+  assert.equal(getUserRoleInfo('CONDUCTEUR').label, 'Conducteur');
+  assert.equal(getUserRoleInfo('CONDUCTEUR').badgeClass, 'badge neutral');
+  assert.equal(getUserRoleInfo('AGENT').label, 'Agent');
+  assert.equal(getUserRoleInfo('AGENT').badgeClass, 'badge amber');
+  assert.equal(getUserRoleInfo('ADMIN').label, 'Administrateur');
+  assert.equal(getUserRoleInfo('ADMIN').badgeClass, 'badge green');
+  assert.equal(getUserRoleInfo('INCONNU').label, 'INCONNU');
+  assert.equal(getUserRoleInfo(null).label, '—');
+});
+
+test('labels: statut utilisateur', () => {
+  assert.equal(getUserStatusInfo(true).label, 'Actif');
+  assert.equal(getUserStatusInfo(true).badgeClass, 'badge green');
+  assert.equal(getUserStatusInfo(false).label, 'Désactivé');
+  assert.equal(getUserStatusInfo(false).badgeClass, 'badge neutral');
 });

@@ -1,16 +1,20 @@
 // frontend/js/pages/admin-tariffs.js
-// Page de gestion des tarifs horaires pour les administrateurs.
+// Page de gestion des tarifs horaires et historique pour les administrateurs.
 
 import { api } from '../api.js';
 import { sessionRevision, isCurrentSession, assertCurrentSession } from '../session.js';
-import { createDomNode, formatMoney } from '../ui/formatters.js';
+import { createDomNode, formatDate, formatMoney } from '../ui/formatters.js';
 import { executeButtonAction } from '../ui/form.js';
 import { showToast, showErrorToast } from '../ui/toast.js';
+import { createEmptyState } from '../ui/empty-state.js';
+import { createLoadingIndicator } from '../ui/loading.js';
 
 export function renderAdminTariffsPage() {
   const container = createDomNode('section', '', 'history', {
     'aria-label': 'Tarifs du parking'
   });
+
+  let currentHistoryPage = 0;
 
   // En-tête
   const header = createDomNode('div', '', 'section-heading');
@@ -51,8 +55,19 @@ export function renderAdminTariffsPage() {
   card.appendChild(displayBox);
   card.appendChild(form);
 
+  // Section Historique
+  const historyCard = createDomNode('div', '', 'card card-section', { 'aria-label': 'Historique des tarifs' });
+  historyCard.appendChild(createDomNode('h2', 'Historique des tarifs'));
+  historyCard.appendChild(createDomNode('p', 'Consultez les évolutions antérieures du tarif horaire.', 'muted'));
+
+  const historyContainer = createDomNode('div', '', 'history-content');
+  const pagerContainer = createDomNode('div', '', 'row pager');
+  historyCard.appendChild(historyContainer);
+  historyCard.appendChild(pagerContainer);
+
   container.appendChild(header);
   container.appendChild(card);
+  container.appendChild(historyCard);
 
   async function loadHourlyRate() {
     const revision = sessionRevision();
@@ -77,6 +92,75 @@ export function renderAdminTariffsPage() {
     }
   }
 
+  async function loadHistory(page = 0) {
+    const revision = sessionRevision();
+    currentHistoryPage = page;
+    historyContainer.replaceChildren(createLoadingIndicator('Chargement de l’historique…'));
+    pagerContainer.replaceChildren();
+
+    try {
+      const data = await api(`/api/tarifs/hourly/history?page=${page}&size=10`);
+      assertCurrentSession(revision);
+
+      const items = Array.isArray(data?.content) ? data.content : [];
+      if (items.length === 0) {
+        historyContainer.replaceChildren(createEmptyState('Aucun historique de tarif disponible.'));
+        return;
+      }
+
+      const tableWrapper = createDomNode('div', '', 'table-responsive');
+      const table = createDomNode('table', '', 'data-table');
+      const thead = createDomNode('thead');
+      const headerRow = createDomNode('tr');
+      headerRow.appendChild(createDomNode('th', 'Tarif'));
+      headerRow.appendChild(createDomNode('th', 'Valable à partir du'));
+      headerRow.appendChild(createDomNode('th', 'Auteur'));
+      headerRow.appendChild(createDomNode('th', 'Enregistré le'));
+      thead.appendChild(headerRow);
+      table.appendChild(thead);
+
+      const tbody = createDomNode('tbody');
+      for (const item of items) {
+        const row = createDomNode('tr');
+        const rateCell = createDomNode('td');
+        rateCell.appendChild(createDomNode('strong', `${formatMoney(item.prixDh)} / h`));
+        row.appendChild(rateCell);
+        row.appendChild(createDomNode('td', formatDate(item.valableAPartir)));
+        row.appendChild(createDomNode('td', item.creePar || '—'));
+        row.appendChild(createDomNode('td', formatDate(item.creeLe)));
+        tbody.appendChild(row);
+      }
+      table.appendChild(tbody);
+      tableWrapper.appendChild(table);
+      historyContainer.replaceChildren(tableWrapper);
+
+      // Pagination
+      const totalPages = data.totalPages || 1;
+      const prevBtn = createDomNode('button', '← Précédent', 'secondary', {
+        type: 'button',
+        disabled: page <= 0
+      });
+      const nextBtn = createDomNode('button', 'Suivant →', 'secondary', {
+        type: 'button',
+        disabled: page >= totalPages - 1
+      });
+      const pageInfo = createDomNode('span', `Page ${page + 1} sur ${totalPages} (${data.totalElements || items.length} entrées)`);
+
+      prevBtn.addEventListener('click', () => {
+        if (page > 0) loadHistory(page - 1);
+      });
+      nextBtn.addEventListener('click', () => {
+        if (page < totalPages - 1) loadHistory(page + 1);
+      });
+
+      pagerContainer.replaceChildren(prevBtn, pageInfo, nextBtn);
+    } catch (error) {
+      if (!isCurrentSession(revision)) return;
+      historyContainer.replaceChildren(createEmptyState('Impossible de charger l’historique des tarifs.'));
+      showErrorToast(error.message);
+    }
+  }
+
   form.addEventListener('submit', event => {
     event.preventDefault();
     const val = parseFloat(rateInput.value);
@@ -95,14 +179,18 @@ export function renderAdminTariffsPage() {
       const rateFormatted = `${formatMoney(updated.prixDh, updated.currency || 'MAD')} / h`;
       currentRateEl.textContent = rateFormatted;
       showToast(`Tarif horaire mis à jour avec succès : ${rateFormatted}`, 'success');
+      await loadHistory(0);
     });
   });
 
   refreshBtn.addEventListener('click', () => {
-    executeButtonAction(refreshBtn, () => loadHourlyRate());
+    executeButtonAction(refreshBtn, async () => {
+      await Promise.all([loadHourlyRate(), loadHistory(currentHistoryPage)]);
+    });
   });
 
   loadHourlyRate();
+  loadHistory(0);
 
   return container;
 }

@@ -30,7 +30,7 @@ export function getCurrentUser() {
 
 export function setCurrentUser(user) {
   currentUser = user ? {
-    id: user.id,
+    id: user.userId || user.id,
     email: user.email,
     displayName: user.displayName || user.email,
     roles: Array.isArray(user.roles) ? [...user.roles] : []

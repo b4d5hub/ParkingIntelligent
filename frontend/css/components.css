@@ -410,6 +410,201 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   to { transform: rotate(360deg); }
 }
 
+/* Tables accessibles et réactives */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.875rem;
+}
+
+.data-table th,
+.data-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.data-table th {
+  background: var(--bg);
+  font-weight: 650;
+  color: var(--muted);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.actions-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.actions-cell button {
+  min-height: 32px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+}
+
+/* Barres de statistiques pures CSS (Strict CSP compliant) */
+.bar-track {
+  display: flex;
+  width: 100%;
+  height: 12px;
+  background: var(--line);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  margin: 10px 0;
+}
+
+.bar-segment {
+  height: 100%;
+}
+
+.bar-green { background: #398250; }
+.bar-amber { background: #d97706; }
+.bar-neutral { background: #71767b; }
+.bar-danger { background: #c0392b; }
+.bar-blue { background: #2563eb; }
+
+.pct-0 { width: 0%; }
+.pct-5 { width: 5%; }
+.pct-10 { width: 10%; }
+.pct-15 { width: 15%; }
+.pct-20 { width: 20%; }
+.pct-25 { width: 25%; }
+.pct-30 { width: 30%; }
+.pct-35 { width: 35%; }
+.pct-40 { width: 40%; }
+.pct-45 { width: 45%; }
+.pct-50 { width: 50%; }
+.pct-55 { width: 55%; }
+.pct-60 { width: 60%; }
+.pct-65 { width: 65%; }
+.pct-70 { width: 70%; }
+.pct-75 { width: 75%; }
+.pct-80 { width: 80%; }
+.pct-85 { width: 85%; }
+.pct-90 { width: 90%; }
+.pct-95 { width: 95%; }
+.pct-100 { width: 100%; }
+
+/* Statistiques & Métriques */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  margin: 16px 0;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.stat-value {
+  font-size: 1.85rem;
+  font-weight: 750;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  margin: 4px 0 8px;
+}
+
+.stat-subtitle {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.stat-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 0.83rem;
+}
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Recherche & Filtres */
+.search-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.search-bar input {
+  flex: 1 1 200px;
+  margin-top: 0;
+}
+
+.search-bar button {
+  min-height: 42px;
+}
+
+/* Formulaire Modal & Checkboxes */
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  margin-bottom: 0;
+}
+
+.checkbox-label input[type="checkbox"] {
+  display: inline-block;
+  width: auto;
+  min-height: auto;
+  margin: 0;
+}
+
 @media (max-width: 480px) {
   .lot {
     max-height: 420px;

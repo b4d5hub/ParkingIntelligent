@@ -41,6 +41,31 @@ export const VEHICLE_TYPE = {
   UTILITAIRE: 'Utilitaire'
 };
 
+export const USER_ROLE = {
+  CONDUCTEUR: { label: 'Conducteur', badgeClass: 'badge neutral' },
+  AGENT: { label: 'Agent', badgeClass: 'badge amber' },
+  ADMIN: { label: 'Administrateur', badgeClass: 'badge green' }
+};
+
+export const USER_STATUS = {
+  ACTIVE: { label: 'Actif', badgeClass: 'badge green' },
+  DISABLED: { label: 'Désactivé', badgeClass: 'badge neutral' }
+};
+
+export function getUserRoleInfo(role) {
+  if (role && USER_ROLE[role]) {
+    return USER_ROLE[role];
+  }
+  return { label: role ? String(role) : '—', badgeClass: 'badge neutral' };
+}
+
+export function getUserStatusInfo(enabled) {
+  if (enabled === true) {
+    return USER_STATUS.ACTIVE;
+  }
+  return USER_STATUS.DISABLED;
+}
+
 export function getReservationStatusInfo(status) {
   if (status && RESERVATION_STATUS[status]) {
     return RESERVATION_STATUS[status];
