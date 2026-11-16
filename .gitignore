@@ -17,3 +17,6 @@
 **/.env
 **/.env.*
 !**/.env.example
+
+# Local scratch files
+c.txt

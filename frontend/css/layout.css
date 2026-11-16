@@ -1,0 +1,161 @@
+/* frontend/css/layout.css */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 65px;
+  padding: 10px max(24px, calc((100vw - 1280px) / 2));
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand, #identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand {
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.logo {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: #fff;
+  font-weight: 700;
+}
+
+#identity {
+  font-size: 0.875rem;
+}
+
+main {
+  flex: 1;
+  width: 100%;
+  max-width: 1328px;
+  margin: 0 auto;
+  padding: 0 24px 36px;
+}
+
+#role-navigation {
+  display: flex;
+  gap: 18px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 16px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tab {
+  white-space: nowrap;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 12px 4px;
+  font-weight: 600;
+  min-height: 44px;
+}
+
+.tab:hover:not(.active) {
+  color: var(--ink);
+}
+
+.tab.active {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+.dashboard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 365px);
+  gap: 22px;
+  align-items: start;
+}
+
+.dashboard > section {
+  min-width: 0;
+}
+
+.section-heading,
+.map-heading,
+.booking-summary,
+.row,
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.map-heading {
+  min-height: 46px;
+  margin-top: -8px;
+}
+
+.map-heading p,
+.section-heading p {
+  margin: 0;
+}
+
+.history {
+  max-width: 880px;
+}
+
+footer {
+  border-top: 1px solid var(--line);
+  padding: 18px 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.77rem;
+  background: var(--surface);
+  margin-top: auto;
+}
+
+@media (max-width: 850px) {
+  .dashboard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  main, .topbar {
+    padding-inline: 14px;
+  }
+  .topbar {
+    flex-wrap: wrap;
+  }
+  #identity {
+    justify-content: space-between;
+    width: 100%;
+  }
+  #role-navigation {
+    gap: 0 12px;
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+  .tab {
+    font-size: 0.8rem;
+    padding: 8px 2px;
+  }
+}
+
+@media (max-width: 360px) {
+  main, .topbar {
+    padding-inline: 10px;
+  }
+  .brand {
+    font-size: 0.95rem;
+  }
+  .tab {
+    font-size: 0.75rem;
+  }
+}
