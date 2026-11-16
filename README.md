@@ -3,7 +3,39 @@
 Projet universitaire : quatre services backend, un frontend commun et une base PostgreSQL commune. Le dépôt contient le module Réservations et le premier service Abonnements (Nest.js). Places et Tarifs restent à intégrer par leurs responsables. Compose démarre Abonnements sur le réseau interne ; son intégration au routage frontend attend le raccordement de l'authentification.
 Projet universitaire : quatre services backend, un frontend commun et une base PostgreSQL commune. Réservations, Places et Tarifs ont une configuration Compose commune. La tarification des réservations dépend encore de l'intégration Abonnements.
 
-## Démarrer l'installation locale Réservations
+## Démarrage complet en une seule commande
+
+Pour lancer tous les services (Base de données, Authentification, Réservations, Places, Tarifs, Abonnements et Frontend) en une seule fois :
+
+```powershell
+# S'assurer d'avoir un fichier .env (déjà configuré avec les secrets locaux)
+docker compose up --build -d
+```
+
+L'application est directement accessible sur [http://127.0.0.1:8080](http://127.0.0.1:8080).
+
+### Persistance des données et comptes de test
+
+Le volume Docker nommé `parking_db_data` est attaché au conteneur PostgreSQL pour stocker toutes les données sur disque. Les comptes, réservations, abonnements et tarifs persistent automatiquement entre les démarrages (y compris après un `docker compose down`).
+
+À l'initialisation de la base, des comptes de test sont automatiquement créés avec le mot de passe commun **`Parking2026!Passphrase`** :
+
+| Rôle | Email | Nom affiché | Mot de passe |
+|---|---|---|---|
+| **ADMIN** | `admin@parking.local` | Administrateur | `Parking2026!Passphrase` |
+| **CONDUCTEUR** | `driver@parking.local` | Conducteur Test | `Parking2026!Passphrase` |
+| **AGENT** | `agent@parking.local` | Agent Test | `Parking2026!Passphrase` |
+| **MULTI-RÔLES** | `super@parking.local` | Super Utilisateur | `Parking2026!Passphrase` |
+
+Pour arrêter l'application sans perdre vos données :
+```powershell
+docker compose down
+```
+*(Attention : n'utilisez pas l'option `-v` si vous souhaitez conserver le contenu de la base).*
+
+---
+
+## Démarrer l'installation locale Réservations seule
 
 Prérequis : Docker Desktop et Docker Compose. Pour exécuter Java sans Docker : JDK 21. Le build Docker compile le projet ; les tests doivent être exécutés séparément avant une livraison.
 

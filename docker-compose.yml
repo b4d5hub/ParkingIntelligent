@@ -1,0 +1,162 @@
+# ParkingIntelligent - Fichier Docker Compose principal
+# Lance l'ensemble des services en une seule commande :
+#   docker compose up --build
+#
+# Persistance des données de la base :
+#   Le volume nommé "parking_db_data" garantit que la base de données et les comptes
+#   utilisateurs persistent sur disque entre chaque redémarrage (même après docker compose down).
+#   À l'initialisation, les comptes de test (ADMIN, CONDUCTEUR, AGENT) sont créés automatiquement.
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: parking
+      POSTGRES_USER: parking
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD dans .env}
+    volumes:
+      - parking_db_data:/var/lib/postgresql/data
+      - ./reservations-service/src/main/resources/db/reservations.sql:/docker-entrypoint-initdb.d/001_reservations.sql:ro
+      - ./reservations-service/src/main/resources/db/003_reservation_workflow.sql:/docker-entrypoint-initdb.d/002_workflow.sql:ro
+      - ./reservations-service/src/main/resources/db/auth/001_accounts.sql:/docker-entrypoint-initdb.d/003_accounts.sql:ro
+      - ./reservations-service/src/main/resources/db/auth/002_sessions.sql:/docker-entrypoint-initdb.d/004_sessions.sql:ro
+      - ./reservations-service/src/main/resources/db/004_booking_payment.sql:/docker-entrypoint-initdb.d/005_booking_payment.sql:ro
+      - ./tarifs-service/src/main/resources/db/tarifs.sql:/docker-entrypoint-initdb.d/006_tarifs.sql:ro
+      - ./subscriptions-service/scripts/script001.sql:/docker-entrypoint-initdb.d/007_subscriptions.sql:ro
+      - ./subscriptions-service/scripts/script002.sql:/docker-entrypoint-initdb.d/008_subscription_prices.sql:ro
+      - ./subscriptions-service/scripts/script003.sql:/docker-entrypoint-initdb.d/009_subscription_seed.sql:ro
+      - ./auth-service/src/main/resources/db/010_seed_accounts.sql:/docker-entrypoint-initdb.d/010_seed_accounts.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U parking -d parking"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    networks:
+      - parking
+
+  auth:
+    build: ./auth-service
+    environment:
+      SPRING_PROFILES_ACTIVE: compose
+      DB_URL: jdbc:postgresql://db:5432/parking
+      DB_USER: parking
+      DB_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD dans .env}
+      AUTH_PLACES_USER: ${AUTH_PLACES_USER:-}
+      AUTH_PLACES_PASSWORD_HASH: ${AUTH_PLACES_PASSWORD_HASH:-}
+      AUTH_TARIFFS_USER: ${AUTH_TARIFFS_USER:-}
+      AUTH_TARIFFS_PASSWORD_HASH: ${AUTH_TARIFFS_PASSWORD_HASH:-}
+      AUTH_RESERVATIONS_USER: ${AUTH_RESERVATIONS_USER:-}
+      AUTH_RESERVATIONS_PASSWORD_HASH: ${AUTH_RESERVATIONS_PASSWORD_HASH:-}
+      AUTH_SUBSCRIPTIONS_USER: ${AUTH_SUBSCRIPTIONS_USER:-}
+      AUTH_SUBSCRIPTIONS_PASSWORD_HASH: ${AUTH_SUBSCRIPTIONS_PASSWORD_HASH:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - parking
+
+  reservations:
+    build: ./reservations-service
+    environment:
+      SPRING_PROFILES_ACTIVE: auth,compose
+      DB_URL: jdbc:postgresql://db:5432/parking
+      DB_USER: parking
+      DB_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD dans .env}
+      PLACES_API_URL: ${PLACES_API_URL:-http://places:8082}
+      PLACES_API_USER: ${PLACES_API_USER:-}
+      PLACES_API_PASSWORD: ${PLACES_API_PASSWORD:-}
+      TARIFFS_API_URL: ${TARIFFS_API_URL:-http://tarifs:8082}
+      TARIFFS_API_USER: ${TARIFFS_API_USER:-}
+      TARIFFS_API_PASSWORD: ${TARIFFS_API_PASSWORD:-}
+      PLACES_SYNC_ENABLED: ${PLACES_SYNC_ENABLED:-true}
+      AUTH_API_URL: ${AUTH_API_URL:-http://auth:8083}
+      AUTH_PLACES_USER: ${AUTH_PLACES_USER:-}
+      AUTH_PLACES_PASSWORD_HASH: ${AUTH_PLACES_PASSWORD_HASH:-}
+      AUTH_TARIFFS_USER: ${AUTH_TARIFFS_USER:-}
+      AUTH_TARIFFS_PASSWORD_HASH: ${AUTH_TARIFFS_PASSWORD_HASH:-}
+      AUTH_SUBSCRIPTIONS_USER: ${AUTH_SUBSCRIPTIONS_USER:-}
+      AUTH_SUBSCRIPTIONS_PASSWORD_HASH: ${AUTH_SUBSCRIPTIONS_PASSWORD_HASH:-}
+    depends_on:
+      db:
+        condition: service_healthy
+      auth:
+        condition: service_started
+    networks:
+      - parking
+
+  places:
+    build: ./places-service
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/parking
+      DB_USER: parking
+      DB_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD dans .env}
+      PLACES_API_USER: ${PLACES_API_USER:?Definir PLACES_API_USER dans .env}
+      PLACES_API_PASSWORD: ${PLACES_API_PASSWORD:?Definir PLACES_API_PASSWORD dans .env}
+      AUTH_API_URL: ${AUTH_API_URL:-http://auth:8083}
+      AUTH_PLACES_USER: ${AUTH_PLACES_USER:?Definir AUTH_PLACES_USER dans .env}
+      AUTH_PLACES_PASSWORD: ${AUTH_PLACES_PASSWORD:?Definir AUTH_PLACES_PASSWORD dans .env}
+    depends_on:
+      db:
+        condition: service_healthy
+      auth:
+        condition: service_started
+    networks:
+      - parking
+
+  tarifs:
+    build: ./tarifs-service
+    environment:
+      PORT: '8082'
+      DB_URL: jdbc:postgresql://db:5432/parking
+      DB_USER: parking
+      DB_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD dans .env}
+      INTERNAL_CALLER_USER: ${TARIFFS_API_USER:?Definir TARIFFS_API_USER dans .env}
+      INTERNAL_CALLER_SECRET: ${TARIFFS_API_PASSWORD:?Definir TARIFFS_API_PASSWORD dans .env}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth:8083}
+      AUTH_TARIFS_USER: ${AUTH_TARIFFS_USER:?Definir AUTH_TARIFFS_USER dans .env}
+      AUTH_TARIFS_SECRET: ${AUTH_TARIFS_SECRET:?Definir AUTH_TARIFS_SECRET dans .env}
+      TARIFS_CURRENCY: ${TARIFS_CURRENCY:-MAD}
+    depends_on:
+      db:
+        condition: service_healthy
+      auth:
+        condition: service_started
+    networks:
+      - parking
+
+  subscriptions:
+    build: ./subscriptions-service
+    environment:
+      NODE_ENV: production
+      PORT: 8082
+      DB_URL: postgres://db:5432/parking
+      DB_USER: parking
+      DB_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD dans .env}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - parking
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:8080"
+    depends_on:
+      - reservations
+      - auth
+      - places
+      - tarifs
+      - subscriptions
+    read_only: true
+    tmpfs:
+      - /tmp
+    networks:
+      - parking
+
+networks:
+  parking:
+
+volumes:
+  parking_db_data:
+    name: parking_db_data

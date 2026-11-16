@@ -13,6 +13,7 @@ services:
       - ./reservations-service/src/main/resources/db/auth/001_accounts.sql:/docker-entrypoint-initdb.d/003_accounts.sql:ro
       - ./reservations-service/src/main/resources/db/auth/002_sessions.sql:/docker-entrypoint-initdb.d/004_sessions.sql:ro
       - ./reservations-service/src/main/resources/db/004_booking_payment.sql:/docker-entrypoint-initdb.d/005_booking_payment.sql:ro
+      - ./auth-service/src/main/resources/db/010_seed_accounts.sql:/docker-entrypoint-initdb.d/010_seed_accounts.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U parking -d parking"]
       interval: 3s
