@@ -1,5 +1,6 @@
 package com.parking.tarifs.controller;
 
+import com.parking.tarifs.dto.TarifHoraireHistoryPage;
 import com.parking.tarifs.dto.TarifHoraireResponse;
 import com.parking.tarifs.dto.TarifHoraireUpdateRequest;
 import com.parking.tarifs.exception.AccesDeniedAuthentifiedException;
@@ -56,6 +57,30 @@ public class HourlyRateController {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.noStore())
                 .body(new TarifHoraireResponse(tarifService.consulterTarifHoraire(), currency));
+    }
+
+    /**
+     * Retourne l'historique paginé du tarif horaire, du plus récent au plus ancien.
+     * Réservé aux utilisateurs avec le rôle ADMIN.
+     */
+    @GetMapping("/hourly/history")
+    public ResponseEntity<TarifHoraireHistoryPage> historique(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            HttpServletRequest requete) {
+
+        String sessionCookie = extraireSessionCookie(requete);
+        UtilisateurValide utilisateur = authClient.valider(sessionCookie, "GET", null);
+
+        if (!utilisateur.hasRole("ADMIN")) {
+            throw new AccesDeniedAuthentifiedException(
+                    "ACCESS_DENIED",
+                    "Le rôle ADMIN est requis pour consulter l'historique des tarifs.");
+        }
+
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .body(tarifService.consulterHistorique(page, size));
     }
 
     /**

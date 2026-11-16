@@ -1,14 +1,20 @@
 package com.parking.tarifs.repository;
 
+import com.parking.tarifs.dto.TarifHoraireHistoryItem;
+import com.parking.tarifs.dto.TarifHoraireHistoryPage;
 import com.parking.tarifs.entity.TarifHoraire;
 import com.parking.tarifs.exception.TarifManquantException;
 import com.parking.tarifs.service.TarifRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 
 /**
  * Implémentation de production de {@link TarifRepository} s'appuyant sur PostgreSQL via JPA.
@@ -40,5 +46,26 @@ public class JpaTarifRepository implements TarifRepository {
         OffsetDateTime maintenant = OffsetDateTime.now(ZoneOffset.UTC);
         TarifHoraire entite = new TarifHoraire(nouveauPrix, maintenant, creePar, maintenant);
         jpaRepository.save(entite);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public TarifHoraireHistoryPage consulterHistorique(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<TarifHoraire> resultat = jpaRepository.findAllByOrderByValableAPartirDescIdDesc(pageable);
+        List<TarifHoraireHistoryItem> items = resultat.getContent().stream()
+                .map(th -> new TarifHoraireHistoryItem(
+                        th.getId(),
+                        th.getPrixDh(),
+                        th.getValableAPartir(),
+                        th.getCreePar(),
+                        th.getCreeLe()))
+                .toList();
+        return new TarifHoraireHistoryPage(
+                items,
+                resultat.getNumber(),
+                resultat.getSize(),
+                resultat.getTotalElements(),
+                resultat.getTotalPages());
     }
 }
