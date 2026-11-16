@@ -6,182 +6,24 @@
   <meta name="color-scheme" content="light">
   <title>Parking intelligent</title>
   <link rel="stylesheet" href="/styles.css">
-  <script type="module" src="/app.js"></script>
+  <script type="module" src="/js/main.js"></script>
 </head>
 <body>
   <header class="topbar">
-    <a href="/" class="brand"><span class="logo" aria-hidden="true">P</span> Parking intelligent</a>
-    <div id="identity" hidden><span id="display-name"></span><button id="logout" class="quiet">Déconnexion</button></div>
+    <a href="#login" class="brand" id="brand-link">
+      <span class="logo" aria-hidden="true">P</span>
+      <span>Parking intelligent</span>
+    </a>
+    <div id="identity" hidden>
+      <span id="display-name"></span>
+      <button id="logout-btn" type="button" class="quiet">Déconnexion</button>
+    </div>
   </header>
-  <main>
-    <div id="notice" class="notice" role="status" hidden></div>
-    <section id="login-panel" class="login-layout">
-      <div><h1>Votre place,<br> au bon moment.</h1><p class="intro">Réservez votre créneau ou gérez les arrivées et les départs depuis votre espace.</p></div>
-      <form id="login-form" class="card login-card">
-        <h2>Se connecter</h2>
-        <label>Adresse e-mail<input name="email" type="email" autocomplete="username" maxlength="254" required></label>
-        <label>Mot de passe<input name="password" type="password" autocomplete="current-password" maxlength="1024" required></label>
-        <button type="submit">Connexion</button>
-      </form>
-    </section>
-    <section id="workspace" hidden>
-      <nav id="role-navigation" aria-label="Espaces du parking">
-        <button id="driver-tab" class="tab">Réserver une place</button>
-        <button id="history-tab" class="tab">Mes réservations</button>
-        <button id="subscriptions-tab" class="tab">Abonnements</button>
-        <button id="agent-tab" class="tab">Arrivées et départs</button>
-        <button id="admin-tab" class="tab">Administration</button>
-      </nav>
-      <h1 id="page-title" tabindex="-1">Réserver une place</h1>
-      <div id="driver-panel" class="dashboard" hidden>
-        <section aria-label="Plan de réservation">
-          <div class="map-heading">
-            <p id="places-status" class="muted" role="status"></p>
-            <button type="button" id="refresh-places" class="quiet">Actualiser les places</button>
-          </div>
-          <div id="driver-map" class="lot" aria-label="Places du parking"></div>
-          <ul class="legend" aria-label="Légende">
-            <li><i class="key available"></i>Disponible</li><li><i class="key selected"></i>Sélectionnée</li><li><i class="key unavailable"></i>Indisponible</li><li><i class="key unchecked"></i>À vérifier</li>
-          </ul>
-        </section>
-        <section class="card booking" aria-labelledby="booking-title">
-          <h2 id="booking-title">Votre créneau</h2>
-          <form id="booking-form">
-            <label>Début prévu<input name="debutPrevu" type="datetime-local" required></label>
-            <label>Fin prévue<input name="finPrevue" type="datetime-local" required></label>
-            <fieldset class="durations"><legend>Durée rapide</legend>
-              <button type="button" class="secondary" data-hours="1">1 h</button>
-              <button type="button" class="secondary" data-hours="2">2 h</button>
-              <button type="button" class="secondary" data-hours="3">3 h</button>
-              <button type="button" class="secondary" data-hours="4">4 h</button>
-            </fieldset>
-            <label>Type de véhicule<input name="typeVehicule" maxlength="32" pattern="[A-Za-z0-9_-]{1,32}" placeholder="Ex. VOITURE" required></label>
-            <input type="hidden" name="placeId" id="place-select">
-            <div class="booking-summary"><span>Place sélectionnée</span><strong id="selected-place">—</strong></div>
-            <div class="booking-summary"><span>Montant estimé</span><strong id="quote-amount">—</strong></div>
-            <p id="quote" class="muted" role="status"></p>
-            <div class="booking-actions">
-              <button type="button" id="estimate" class="secondary" disabled>Obtenir le devis</button>
-              <button type="submit" id="book" disabled>Réserver et payer (simulation)</button>
-            </div>
-            <p class="muted policy">Le créneau est payé à la réservation. L’annulation ne donne pas lieu à un remboursement. Seul le temps supplémentaire est facturé au départ.</p>
-          </form>
-        </section>
-      </div>
-      <section id="history-panel" class="history" aria-label="Historique des réservations" hidden>
-        <div class="section-heading"><p class="muted">Retrouvez vos créneaux et leurs paiements.</p><button id="refresh-driver" class="quiet">Actualiser</button></div>
-        <div id="driver-list" class="reservation-list"></div>
-        <div class="pager"><button id="previous-driver" class="secondary">Précédent</button><span id="driver-page"></span><button id="next-driver" class="secondary">Suivant</button></div>
-      </section>
-      <section id="agent-panel" aria-label="Opérations du parking" hidden>
-        <form id="operations-form" class="filters">
-          <label>Du<input name="start" type="datetime-local" required></label>
-          <label>Au<input name="end" type="datetime-local" required></label>
-          <button type="submit" class="secondary">Actualiser</button>
-        </form>
-        <div class="dashboard">
-          <section aria-label="Occupation du parking">
-            <p id="agent-places-status" class="muted" role="status"></p>
-            <div id="agent-map" class="lot" aria-label="Occupation actuelle"></div>
-            <ul class="legend" aria-label="Légende">
-              <li><i class="key unchecked"></i>Libre</li><li><i class="key awaiting"></i>Arrivée attendue</li><li><i class="key occupied"></i>Occupée</li><li><i class="key unavailable"></i>Hors service</li>
-            </ul>
-            <p class="muted policy">Le plan indique l’occupation actuelle et les arrivées attendues sur la page affichée.</p>
-          </section>
-          <section class="card operations">
-            <h2>Réservations de la période</h2>
-            <div id="agent-list" class="reservation-list"></div>
-            <div class="pager"><button id="previous-agent" class="secondary">Précédent</button><span id="agent-page"></span><button id="next-agent" class="secondary">Suivant</button></div>
-          </section>
-        </div>
-      </section>
-      <section id="subscriptions-panel" aria-label="Abonnements" hidden>
-        <section aria-label="Formules d'abonnement">
-          <div class="section-heading">
-            <div>
-              <h2>Formules disponibles</h2>
-              <p class="muted">Choisissez votre formule pour stationner en toute tranquillité.</p>
-            </div>
-          </div>
-          <div class="plans-grid">
-            <article class="plan-card">
-              <h3>Journalier</h3>
-              <p class="plan-price">40,00 MAD</p>
-              <p class="muted">Accès illimité pendant 24 heures.</p>
-              <button type="button" class="subscribe-btn" data-plan="DAILY">Souscrire</button>
-            </article>
-            <article class="plan-card">
-              <h3>Hebdomadaire</h3>
-              <p class="plan-price">180,00 MAD</p>
-              <p class="muted">Accès illimité pendant 7 jours.</p>
-              <button type="button" class="subscribe-btn" data-plan="WEEKLY">Souscrire</button>
-            </article>
-            <article class="plan-card featured">
-              <h3>Mensuel</h3>
-              <p class="plan-price">450,00 MAD</p>
-              <p class="muted">Accès illimité pendant 1 mois civil.</p>
-              <button type="button" class="subscribe-btn" data-plan="MONTHLY">Souscrire</button>
-            </article>
-            <article class="plan-card">
-              <h3>Annuel</h3>
-              <p class="plan-price">4 800,00 MAD</p>
-              <p class="muted">Accès illimité pendant 1 an complet.</p>
-              <button type="button" class="subscribe-btn" data-plan="ANNUAL">Souscrire</button>
-            </article>
-          </div>
-        </section>
-        <section class="history card-section" aria-label="Mes abonnements">
-          <div class="section-heading">
-            <div>
-              <h2>Mes abonnements</h2>
-              <p class="muted">Retrouvez vos abonnements actifs et passés.</p>
-            </div>
-            <button type="button" id="refresh-subscriptions" class="quiet">Actualiser</button>
-          </div>
-          <p id="subscriptions-status" class="muted" role="status"></p>
-          <div id="subscriptions-list" class="reservation-list"></div>
-        </section>
-      </section>
-      <section id="admin-panel" class="dashboard" aria-label="Administration du parking" hidden>
-        <section aria-label="Gestion des places">
-          <div class="section-heading">
-            <div>
-              <h2>Places du parking</h2>
-              <p class="muted">Gérez la disponibilité des places et leur mise hors service.</p>
-            </div>
-            <button type="button" id="refresh-admin-places" class="quiet">Actualiser</button>
-          </div>
-          <p id="admin-places-status" class="muted" role="status"></p>
-          <div id="admin-places-list" class="admin-places-list"></div>
-        </section>
-        <section class="card admin-controls">
-          <h2>Ajouter une place</h2>
-          <form id="add-place-form">
-            <label>Numéro de la place
-              <input name="numero" type="text" maxlength="20" placeholder="Ex. P-101" required>
-            </label>
-            <button type="submit" id="add-place-btn">Ajouter la place</button>
-          </form>
-          <div id="admin-tariff-section" class="card-section">
-            <div class="section-heading">
-              <h2>Tarif horaire</h2>
-              <button type="button" id="refresh-tariff" class="quiet">Actualiser</button>
-            </div>
-            <div class="tariff-display">
-              <span class="muted">Tarif actuel</span>
-              <strong id="current-hourly-rate">—</strong>
-            </div>
-            <form id="update-tariff-form">
-              <label>Nouveau tarif horaire (MAD)
-                <input name="prixDh" type="number" step="0.01" min="0.01" max="10000" placeholder="Ex. 12.50" required>
-              </label>
-              <button type="submit" id="update-tariff-btn">Modifier le tarif</button>
-            </form>
-          </div>
-        </section>
-      </section>
-    </section>
+  <main id="app">
+    <nav id="role-navigation" aria-label="Espaces du parking" hidden></nav>
+    <div id="page-content" role="region" aria-live="polite"></div>
   </main>
+  <div id="toast-container" class="toast-container" role="region" aria-label="Notifications"></div>
   <footer>Parking intelligent · Prototype universitaire · Paiement simulé</footer>
 </body>
 </html>
