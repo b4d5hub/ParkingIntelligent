@@ -72,8 +72,12 @@ services:
       DB_URL: postgres://db:5432/parking
       DB_USER: parking
       DB_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD dans .env}
+      AUTH_API_URL: ${AUTH_API_URL:-http://auth:8083}
+      AUTH_SUBSCRIPTIONS_USER: ${AUTH_SUBSCRIPTIONS_USER:-abonnements}
+      AUTH_SUBSCRIPTIONS_PASSWORD: ${AUTH_SUBSCRIPTIONS_PASSWORD:-AbonnementsAuthSecret2026_uvw}
     depends_on:
       db: {condition: service_healthy}
+      auth: {condition: service_started}
     networks: [parking]
   frontend:
     build: ./frontend
