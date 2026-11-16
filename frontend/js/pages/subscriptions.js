@@ -64,7 +64,7 @@ export function renderSubscriptionsPage() {
         const title = createDomNode('h3', plan.title);
         const price = createDomNode('p', formatMoney(plan.price, plan.currency), 'plan-price');
         const desc = createDomNode('p', plan.description, 'muted');
-        const subscribeBtn = createDomNode('button', 'Souscrire', plan.featured ? '' : 'secondary', {
+        const subscribeBtn = createDomNode('button', 'Souscrire (simulation)', plan.featured ? '' : 'secondary', {
           type: 'button',
           'data-plan': plan.period
         });
@@ -72,7 +72,7 @@ export function renderSubscriptionsPage() {
         subscribeBtn.addEventListener('click', async () => {
           const confirmed = await confirmModal({
             title: `Souscrire à la formule ${plan.title}`,
-            message: `Confirmez-vous la souscription à l’abonnement ${plan.title} au montant de ${formatMoney(plan.price, plan.currency)} ?`,
+            message: `Confirmez-vous la souscription à l’abonnement ${plan.title} au montant de ${formatMoney(plan.price, plan.currency)} ? (Simulation : aucun paiement réel n’est effectué, l’abonnement est activé immédiatement).`,
             confirmText: 'Confirmer la souscription',
             cancelText: 'Annuler'
           });
@@ -84,7 +84,7 @@ export function renderSubscriptionsPage() {
               body: { period: plan.period }
             });
             checkSession();
-            showToast(`Abonnement ${plan.title} souscrit avec succès.`, 'success');
+            showToast(`Abonnement ${plan.title} souscrit avec succès (simulation).`, 'success');
             await loadUserSubscriptions();
           });
         });
@@ -139,6 +139,33 @@ export function renderSubscriptionsPage() {
             'muted sync'
           );
           card.appendChild(infoP);
+        }
+
+        if (sub.status === 'ACTIVE') {
+          const cancelBtn = createDomNode('button', 'Annuler', 'secondary', {
+            type: 'button',
+            'data-sub-id': sub.id
+          });
+          cancelBtn.addEventListener('click', async () => {
+            const confirmed = await confirmModal({
+              title: 'Annuler l’abonnement',
+              message: `Confirmez-vous l’annulation de votre abonnement ${periodLabel} ? Cette action prend effet immédiatement.`,
+              confirmText: 'Confirmer l’annulation',
+              cancelText: 'Retour',
+              isDanger: true
+            });
+            if (!confirmed) return;
+
+            executeButtonAction(cancelBtn, async checkSession => {
+              await api(`/api/subscriptions/${encodeURIComponent(sub.id)}/cancel`, {
+                method: 'POST'
+              });
+              checkSession();
+              showToast('Abonnement annulé avec succès.', 'success');
+              await loadUserSubscriptions();
+            });
+          });
+          card.appendChild(cancelBtn);
         }
 
         subsListContainer.appendChild(card);
