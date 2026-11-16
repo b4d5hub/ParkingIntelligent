@@ -3,6 +3,7 @@ package com.parking.tarifs.security;
 import com.parking.tarifs.service.ReductionProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -28,6 +29,7 @@ public class AbonnementsReductionClient implements ReductionProvider {
 
     private final RestClient restClient;
 
+    @Autowired
     public AbonnementsReductionClient(
             @Value("${tarifs.subscriptions.service.url:http://subscriptions:8082}") String subscriptionsServiceUrl,
             @Value("${tarifs.subscriptions.api.user:}") String subscriptionsUser,
