@@ -1,30 +1,22 @@
 package com.parking.reservations_service.auth;
 
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.csrf.CsrfException;
-import tools.jackson.databind.ObjectMapper;
-import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
-import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
-import org.springframework.core.env.Environment;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import java.time.Clock;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-
-import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration(proxyBeanMethods = false)
 @Profile("auth")
@@ -32,68 +24,30 @@ public class AuthWebSecurityConfiguration {
 
     @Bean
     SecurityFilterChain authSecurityFilterChain(HttpSecurity http, ObjectMapper objectMapper,
-            ObjectProvider<AuthSessionPolicy> policyProvider, Environment environment) throws Exception {
-        var csrf = new HttpSessionCsrfTokenRepository();
-        csrf.setSessionAttributeName("PARKING_CSRF");
-        var policy = policyProvider.getIfAvailable();
+            ObjectProvider<ReservationUserAuthFilter> userAuthFilterProvider) throws Exception {
+        var userAuthFilter = userAuthFilterProvider.getIfAvailable();
         http
-                .csrf(config -> config.csrfTokenRepository(csrf))
+                .csrf(AbstractHttpConfigurer::disable)
                 .requestCache(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                        .sessionFixation(fixation -> fixation.changeSessionId()))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/reservations/operations").hasRole("AGENT")
                         .requestMatchers(HttpMethod.POST, "/api/reservations/*/arrival", "/api/reservations/*/departure").hasRole("AGENT")
+                        .requestMatchers(HttpMethod.GET, "/api/reservations/availability").permitAll()
                         .requestMatchers("/api/reservations", "/api/reservations/**").hasRole("CONDUCTEUR")
+                        .requestMatchers("/internal/**").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
                         .anyRequest().denyAll())
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, exception) -> writeJson(objectMapper, response,
                                 401, new AuthErrorResponse("AUTHENTICATION_REQUIRED", "Authentification requise")))
-                        .accessDeniedHandler((request, response, exception) -> {
-                            AuthErrorResponse body = exception instanceof CsrfException
-                                    ? new AuthErrorResponse("CSRF_INVALID", "Jeton CSRF absent ou invalide")
-                                    : new AuthErrorResponse("ACCESS_DENIED", "Accès refusé");
-                            writeJson(objectMapper, response, 403, body);
-                        }))
-                .formLogin(form -> form
-                        .loginPage("/api/auth/login")
-                        .loginProcessingUrl("/api/auth/login")
-                        .usernameParameter("email")
-                        .passwordParameter("password")
-                        .successHandler((request, response, authentication) -> {
-                            if (policy != null) { policy.initialize(request.getSession()); }
-                            writeJson(objectMapper, response, 200,
-                                AuthUserResponse.fromPrincipal((ParkingUserPrincipal) authentication.getPrincipal()));
-                        })
-                        .failureHandler((request, response, exception) -> {
-                            if (exception instanceof AuthenticationServiceException) {
-                                writeJson(objectMapper, response, 503,
-                                        new AuthErrorResponse("AUTHENTICATION_UNAVAILABLE", "Authentification indisponible"));
-                            } else {
-                                writeJson(objectMapper, response, 401,
-                                        new AuthErrorResponse("INVALID_CREDENTIALS", "Identifiants invalides"));
-                            }
-                        }))
-                .logout(logout -> logout
-                        .logoutUrl("/api/auth/logout")
-                        .invalidateHttpSession(true)
-                        .clearAuthentication(true)
-                        .deleteCookies("PARKING_SESSION")
-                        .logoutSuccessHandler((request, response, authentication) -> {
-                            response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
-                            response.setStatus(HttpServletResponse.SC_NO_CONTENT);
-                        }));
+                        .accessDeniedHandler((request, response, exception) -> writeJson(objectMapper, response,
+                                403, new AuthErrorResponse("ACCESS_DENIED", "Accès refusé"))));
 
-        if (policy != null) { http.addFilterAfter(policy, AnonymousAuthenticationFilter.class); }
-        http.addFilterBefore(new AuthLoginThrottle(Clock.systemUTC(),
-                environment.getProperty("parking.auth.login-account-limit", Integer.class, 10),
-                environment.getProperty("parking.auth.login-address-limit", Integer.class, 50), objectMapper),
-                UsernamePasswordAuthenticationFilter.class);
+        if (userAuthFilter != null) {
+            http.addFilterBefore(userAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        }
         return http.build();
     }
 

@@ -9,7 +9,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.*;
 
 @Configuration(proxyBeanMethods = false)
-@Profile("auth")
+@Profile("legacy-auth")
 @EnableJdbcHttpSession(maxInactiveIntervalInSeconds = 1800)
 public class AuthSessionConfiguration {
     @Bean CookieSerializer cookieSerializer(Environment environment) {

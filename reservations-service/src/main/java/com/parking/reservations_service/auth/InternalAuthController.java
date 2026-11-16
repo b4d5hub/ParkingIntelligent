@@ -18,7 +18,7 @@ import java.time.*;
 import java.util.Set;
 
 @RestController
-@Profile("auth")
+@Profile("legacy-auth")
 @RequestMapping("/internal/auth")
 public class InternalAuthController {
     private final SessionRepository<? extends Session> sessions;
