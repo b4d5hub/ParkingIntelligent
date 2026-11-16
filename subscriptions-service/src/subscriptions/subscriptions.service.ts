@@ -1,5 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import type { SubscriptionDates, SubscriptionEntity, SubscriptionPeriod } from './entities/subscription.entity';
+import type { SubscriptionDates, SubscriptionEntity, SubscriptionPeriod, SubscriptionPrice } from './entities/subscription.entity';
 import { SYSTEM_CLOCK } from './helper/system-clock';
 import {
   SUBSCRIPTION_PRICE_REPOSITORY,
@@ -41,6 +42,7 @@ export class SubscriptionsService {
     const startsAt = dto.startsAt ? new Date(dto.startsAt) : currentTime;
     if (Number.isNaN(startsAt.getTime())) throw new BadRequestException('Invalid start date.');
     if (startsAt.getTime() < currentTime.getTime()) throw new BadRequestException('Start date cannot be in the past.');
+    const paymentReference = `SIM-${randomUUID()}`;
     return this.subscriptions.create({
       userId,
       period: dto.period,
@@ -48,7 +50,24 @@ export class SubscriptionsService {
       endsAt: this.calculateEndDate(startsAt, dto.period),
       price: price.price,
       currency: price.currency,
+      status: 'ACTIVE',
+      paymentReference,
     });
+  }
+
+  async getPlans(): Promise<SubscriptionPrice[]> {
+    return this.prices.findAllActivePrices();
+  }
+
+  async cancel(id: string, userId: string): Promise<SubscriptionEntity> {
+    await this.subscriptions.expireDueSubscriptions(this.now());
+    try {
+      return await this.subscriptions.cancel(id, userId);
+    } catch (error) {
+      if (error instanceof SubscriptionNotFoundError) throw new NotFoundException(error.message);
+      if (error instanceof SubscriptionPaymentConflictError) throw new ConflictException(error.message);
+      throw error;
+    }
   }
 
   async findMine(userId: string): Promise<SubscriptionEntity[]> {

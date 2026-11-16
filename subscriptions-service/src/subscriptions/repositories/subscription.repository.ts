@@ -1,4 +1,4 @@
-import type { SubscriptionEntity, SubscriptionPeriod, SubscriptionPrice } from '../entities/subscription.entity';
+import type { SubscriptionEntity, SubscriptionPeriod, SubscriptionPrice, SubscriptionStatus } from '../entities/subscription.entity';
 
 export const SUBSCRIPTION_REPOSITORY = Symbol('SUBSCRIPTION_REPOSITORY');
 export const SUBSCRIPTION_PRICE_REPOSITORY = Symbol('SUBSCRIPTION_PRICE_REPOSITORY');
@@ -13,6 +13,8 @@ export interface NewSubscription {
   endsAt: Date;
   price: string;
   currency: string;
+  status?: SubscriptionStatus;
+  paymentReference?: string | null;
 }
 
 export interface SubscriptionRepository {
@@ -24,8 +26,10 @@ export interface SubscriptionRepository {
   findExpiringBetween(from: Date, through: Date): Promise<SubscriptionEntity[]>;
   claimExpirationNotification(id: string, sentAt: Date): Promise<SubscriptionEntity | null>;
   hasActiveSubscription(userId: string, start: Date, end: Date): Promise<boolean>;
+  cancel(id: string, userId: string): Promise<SubscriptionEntity>;
 }
 
 export interface SubscriptionPriceRepository {
   findActivePrice(period: SubscriptionPeriod): Promise<SubscriptionPrice | null>;
+  findAllActivePrices(): Promise<SubscriptionPrice[]>;
 }

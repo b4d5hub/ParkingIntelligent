@@ -5,8 +5,13 @@ import {
   Injectable,
   UnauthorizedException,
   Logger,
+  SetMetadata,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
+
+export const ALLOW_ANY_ROLE_KEY = 'allowAnyRole';
+export const AllowAnyRole = () => SetMetadata(ALLOW_ANY_ROLE_KEY, true);
 
 interface SessionRequest extends Request {
   user?: { userId: string; roles: string[] };
@@ -18,6 +23,8 @@ export class SessionPrincipalGuard implements CanActivate {
   private readonly authUrl = process.env.AUTH_API_URL || 'http://auth:8083';
   private readonly authUser = process.env.AUTH_SUBSCRIPTIONS_USER || 'abonnements';
   private readonly authPassword = process.env.AUTH_SUBSCRIPTIONS_PASSWORD || 'AbonnementsAuthSecret2026_uvw';
+
+  constructor(private readonly reflector?: Reflector) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<SessionRequest>();
@@ -79,7 +86,13 @@ export class SessionPrincipalGuard implements CanActivate {
     if (!request.user || !/^[1-9][0-9]*$/.test(request.user.userId)) {
       throw new UnauthorizedException('Authenticated session is required.');
     }
-    if (!request.user.roles.includes('CONDUCTEUR')) {
+
+    const allowAnyRole = this.reflector?.getAllAndOverride<boolean>(ALLOW_ANY_ROLE_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (!allowAnyRole && !request.user.roles.includes('CONDUCTEUR')) {
       throw new ForbiddenException('CONDUCTEUR role is required.');
     }
     return true;

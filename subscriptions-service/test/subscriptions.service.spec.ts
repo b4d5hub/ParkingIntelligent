@@ -1,6 +1,10 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SubscriptionsService } from '../src/subscriptions/subscriptions.service';
+import {
+  SubscriptionNotFoundError,
+  SubscriptionPaymentConflictError,
+} from '../src/subscriptions/repositories/subscription.repository';
 import type { SubscriptionRepository, SubscriptionPriceRepository } from '../src/subscriptions/repositories/subscription.repository';
 import type { NewSubscription } from '../src/subscriptions/repositories/subscription.repository';
 import type { SubscriptionEntity, SubscriptionPeriod } from '../src/subscriptions/entities/subscription.entity';
@@ -16,7 +20,14 @@ describe('SubscriptionsService', () => {
 
   beforeEach(() => {
     repository = {
-      create: vi.fn(async (input: NewSubscription) => ({ ...input, id: 'sub-1', status: 'PENDING_PAYMENT', paymentReference: null, expirationNotificationSentAt: null, createdAt: now }) as SubscriptionEntity),
+      create: vi.fn(async (input: NewSubscription) => ({
+        ...input,
+        id: 'sub-1',
+        status: input.status ?? 'ACTIVE',
+        paymentReference: input.paymentReference ?? null,
+        expirationNotificationSentAt: null,
+        createdAt: now,
+      }) as SubscriptionEntity),
       findByUserId: vi.fn(async () => []),
       findById: vi.fn(async () => null),
       activateAfterPayment: vi.fn(async () => ({ id: 'sub-1', status: 'ACTIVE' }) as SubscriptionEntity),
@@ -24,8 +35,29 @@ describe('SubscriptionsService', () => {
       findExpiringBetween: vi.fn(async () => []),
       claimExpirationNotification: vi.fn(async () => null),
       hasActiveSubscription: vi.fn(async () => false),
+      cancel: vi.fn(async (id: string, userId: string) => ({
+        id,
+        userId,
+        period: 'MONTHLY',
+        startsAt: now,
+        endsAt: new Date('2026-02-28T10:30:00.000Z'),
+        price: '450.00',
+        currency: 'MAD',
+        status: 'CANCELLED',
+        paymentReference: 'SIM-123',
+        expirationNotificationSentAt: null,
+        createdAt: now,
+      }) as SubscriptionEntity),
     };
-    priceRepository = { findActivePrice: vi.fn(async (period: SubscriptionPeriod) => ({ period, price: priceByPeriod[period], currency: 'MAD' })) };
+    priceRepository = {
+      findActivePrice: vi.fn(async (period: SubscriptionPeriod) => ({ period, price: priceByPeriod[period], currency: 'MAD' })),
+      findAllActivePrices: vi.fn(async () => [
+        { period: 'DAILY', price: '40.00', currency: 'MAD' },
+        { period: 'WEEKLY', price: '180.00', currency: 'MAD' },
+        { period: 'MONTHLY', price: '450.00', currency: 'MAD' },
+        { period: 'ANNUAL', price: '4800.00', currency: 'MAD' },
+      ]),
+    };
     service = new SubscriptionsService(repository, priceRepository, () => new Date(now));
   });
 
@@ -38,14 +70,21 @@ describe('SubscriptionsService', () => {
     expect(service.calculateEndDate(now, period).toISOString()).toBe(expected);
   });
 
-  it('creates a pending subscription using the server-side period price', async () => {
+  it('creates an active subscription directly with simulated payment reference using the server-side price', async () => {
     const created = await service.create('42', { period: 'MONTHLY' });
     expect(priceRepository.findActivePrice).toHaveBeenCalledWith('MONTHLY');
     expect(repository.create).toHaveBeenCalledWith(expect.objectContaining({
-      userId: '42', period: 'MONTHLY', price: '450.00', currency: 'MAD',
-      startsAt: now, endsAt: new Date('2026-02-28T10:30:00.000Z'),
+      userId: '42',
+      period: 'MONTHLY',
+      price: '450.00',
+      currency: 'MAD',
+      status: 'ACTIVE',
+      paymentReference: expect.stringMatching(/^SIM-[0-9a-fA-F-]{36}$/),
+      startsAt: now,
+      endsAt: new Date('2026-02-28T10:30:00.000Z'),
     }));
-    expect(created.status).toBe('PENDING_PAYMENT');
+    expect(created.status).toBe('ACTIVE');
+    expect(created.paymentReference).toMatch(/^SIM-[0-9a-fA-F-]{36}$/);
   });
 
   it('does not create a subscription if no server-side price is configured', async () => {
@@ -150,6 +189,36 @@ describe('SubscriptionsService', () => {
         hasActiveSubscription: false,
         discountPercentage: 0,
       });
+    });
+  });
+
+  describe('getPlans', () => {
+    it('returns active plans from the price repository', async () => {
+      const plans = await service.getPlans();
+      expect(priceRepository.findAllActivePrices).toHaveBeenCalled();
+      expect(plans).toHaveLength(4);
+      expect(plans[0]).toEqual({ period: 'DAILY', price: '40.00', currency: 'MAD' });
+    });
+  });
+
+  describe('cancel', () => {
+    it('expires due subscriptions then cancels the subscription', async () => {
+      const cancelled = await service.cancel('sub-1', '42');
+      expect(repository.expireDueSubscriptions).toHaveBeenCalledWith(now);
+      expect(repository.cancel).toHaveBeenCalledWith('sub-1', '42');
+      expect(cancelled.status).toBe('CANCELLED');
+    });
+
+    it('maps SubscriptionNotFoundError to NotFoundException', async () => {
+      vi.mocked(repository.cancel).mockRejectedValue(new SubscriptionNotFoundError('Subscription not found.'));
+      await expect(service.cancel('sub-1', 'other-user')).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('maps SubscriptionPaymentConflictError to ConflictException', async () => {
+      vi.mocked(repository.cancel).mockRejectedValue(
+        new SubscriptionPaymentConflictError('Subscription is already cancelled.'),
+      );
+      await expect(service.cancel('sub-1', '42')).rejects.toBeInstanceOf(ConflictException);
     });
   });
 });
