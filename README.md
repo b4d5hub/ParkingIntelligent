@@ -65,7 +65,7 @@ Depuis `reservations-service`, avec JAVA_HOME pointant sur un JDK 21 :
 
 La première commande teste sans base externe. La seconde crée un PostgreSQL jetable, applique les schémas, lance aussi les tests de transactions, concurrence et authentification HTTP, puis arrête uniquement son propre conteneur. La base de développement n'est pas modifiée. `-Offline` utilise le cache Maven local.
 
-Le frontend poursuit sa migration progressive vers Angular avec Tailwind : l'écran de connexion et tous les écrans administrateur sont migrés, tandis que les écrans conducteur et agent JavaScript restent en place pendant leur conversion. Voir [le guide frontend](frontend/README.md). Les tests historiques JavaScript sans dépendances se lancent avec `cd frontend && node --test test/*.test.js tests/*.test.mjs`.
+Le frontend utilise Angular avec Tailwind pour l'écran de connexion et tous les espaces administrateur, conducteur et agent. Voir [le guide frontend](frontend/README.md). Les tests historiques JavaScript sans dépendances se lancent avec `cd frontend && node --test test/*.test.js tests/*.test.mjs`.
 
 ## Documents à transmettre
 

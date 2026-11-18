@@ -1,5 +1,19 @@
 # Guide de Style - Frontend Parking Intelligent
 
+## Identité produit — Mobilité urbaine
+
+Les écrans conducteur et administrateur Angular utilisent une identité contemporaine autour de la mobilité urbaine. Cette direction complète les écrans historiques qui conservent leur thème minéral.
+
+* **Bleu nuit** : `#101d2c` pour les bandeaux, le plan du parking et les éléments de marque.
+* **Citron vert** : `#c5f277` pour l’action principale, les sélections et les repères actifs.
+* **Bleu électrique** : `#6bb5ff` pour la place sélectionnée et les informations de navigation.
+* **Surface** : `#fcfdff`, avec un fond secondaire `#eef4f8` et des séparateurs `#d6dee8`.
+* **Texte** : `#101d2c` sur surface claire et blanc sur bleu nuit. Les états d’erreur et d’attente gardent leurs couleurs sémantiques.
+
+Les composants conducteur restent en Angular avec Tailwind. Les anciennes feuilles globales sont placées dans la couche `legacy` pour laisser les utilitaires Tailwind exprimer cette identité sans devoir ajouter de CSS natif aux composants.
+
+---
+
 Ce document définit les règles graphiques et ergonomiques appliquées à l'interface du Parking Intelligent. L'objectif est de préserver une identité visuelle soignée, sobre et contrastée (palette minérale chaude, typographie lisible, micro-interactions soignées) tout en assurant une accessibilité irréprochable (WCAG AA).
 
 ---
