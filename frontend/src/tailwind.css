@@ -1,0 +1,6 @@
+@import "../css/base.css";
+@import "../css/layout.css";
+@import "../css/components.css";
+@import "../css/pages.css";
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" source("./");

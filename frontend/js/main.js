@@ -12,12 +12,6 @@ import { renderDriverReservePage } from './pages/driver-reserve.js';
 import { renderDriverHistoryPage } from './pages/driver-history.js';
 import { renderSubscriptionsPage } from './pages/subscriptions.js';
 import { renderAgentOperationsPage } from './pages/agent-operations.js';
-import { renderAdminDashboardPage } from './pages/admin-dashboard.js';
-import { renderAdminPlacesPage } from './pages/admin-places.js';
-import { renderAdminTariffsPage } from './pages/admin-tariffs.js';
-import { renderAdminSubscriptionsPage } from './pages/admin-subscriptions.js';
-import { renderAdminReservationsPage } from './pages/admin-reservations.js';
-import { renderAdminUsersPage } from './pages/admin-users.js';
 
 const identityContainer = document.getElementById('identity');
 const displayNameEl = document.getElementById('display-name');
@@ -123,27 +117,27 @@ function renderRoute(route) {
       break;
 
     case ROUTES.ADMIN_DASHBOARD:
-      pageContentEl.appendChild(renderAdminDashboardPage());
+      // Cette page est maintenant rendue par AdminDashboardComponent (Angular).
       break;
 
     case ROUTES.ADMIN_PLACES:
-      pageContentEl.appendChild(renderAdminPlacesPage());
+      // Écran rendu par Angular.
       break;
 
     case ROUTES.ADMIN_TARIFFS:
-      pageContentEl.appendChild(renderAdminTariffsPage());
+      // Écran rendu par Angular.
       break;
 
     case ROUTES.ADMIN_SUBSCRIPTIONS:
-      pageContentEl.appendChild(renderAdminSubscriptionsPage());
+      // Écran rendu par Angular.
       break;
 
     case ROUTES.ADMIN_RESERVATIONS:
-      pageContentEl.appendChild(renderAdminReservationsPage());
+      // Écran rendu par Angular.
       break;
 
     case ROUTES.ADMIN_USERS:
-      pageContentEl.appendChild(renderAdminUsersPage());
+      // Écran rendu par Angular.
       break;
 
     case ROUTES.NO_ROLE:
@@ -184,4 +178,4 @@ async function bootstrap() {
   initRouter(renderRoute);
 }
 
-bootstrap();
+export const appReady = bootstrap();
