@@ -1,68 +1,58 @@
 # Parking intelligent
 
-Projet universitaire : quatre services backend, un frontend commun et une base PostgreSQL commune. Le dépôt contient le module Réservations et le premier service Abonnements (Nest.js). Places et Tarifs restent à intégrer par leurs responsables. Compose démarre Abonnements sur le réseau interne ; son intégration au routage frontend attend le raccordement de l'authentification.
-Projet universitaire : quatre services backend, un frontend commun et une base PostgreSQL commune. Réservations, Places et Tarifs ont une configuration Compose commune. La tarification des réservations dépend encore de l'intégration Abonnements.
+Projet universitaire composé des services Auth, Réservations, Places, Tarifs et Abonnements, d'un frontend commun et d'une base PostgreSQL partagée.
 
-## Démarrer l'installation locale Réservations
+## Démarrage complet en une seule commande
 
-Prérequis : Docker Desktop et Docker Compose. Pour exécuter Java sans Docker : JDK 21. Le build Docker compile le projet ; les tests doivent être exécutés séparément avant une livraison.
+Prérequis : Docker Desktop avec Docker Compose. Depuis la racine du dépôt, lance toute l'application :
 
-Depuis la racine, dans PowerShell :
-
-```powershell
-Copy-Item .env.example .env
-# Modifier .env : choisir DB_PASSWORD, sans le versionner.
-docker compose -f compose.reservations.yml up --build -d
+```sh
+docker compose up --build -d
 ```
 
-Le schéma Abonnements n'est pas exécuté par Docker au démarrage. Après avoir démarré PostgreSQL et créé `parking_auth_users`, exécuter manuellement, dans cet ordre, `subscriptions-service/scripts/script001.sql`, `script002.sql` puis `script003.sql` dans la base `parking`.
+Tous les services et les identifiants machine de développement sont configurés dans Compose ; Node.js n'est pas nécessaire sur le poste. `.env` est facultatif et sert uniquement à surcharger les valeurs locales. Ces identifiants sont réservés au développement local : ne pas exposer les ports au réseau ni les réutiliser en production.
+
+L'application est directement accessible sur [http://127.0.0.1:8080](http://127.0.0.1:8080).
+
+### Persistance des données et comptes de test
+
+Le volume Docker `parking_db_data` conserve les données PostgreSQL entre les démarrages (y compris après `docker compose down`). Ne pas utiliser `-v` si tu souhaites garder les données.
+
+Les comptes de démonstration sont disponibles avec le mot de passe commun **`Parking2026!Passphrase`** :
+
+| Rôle | Email | Nom affiché | Mot de passe |
+|---|---|---|---|
+| **ADMIN** | `admin@parking.local` | Administrateur | `Parking2026!Passphrase` |
+| **CONDUCTEUR** | `driver@parking.local` | Conducteur Test | `Parking2026!Passphrase` |
+| **AGENT** | `agent@parking.local` | Agent Test | `Parking2026!Passphrase` |
+| **MULTI-RÔLES** | `super@parking.local` | Super Utilisateur | `Parking2026!Passphrase` |
+
+Pour arrêter l'application sans perdre les données :
+```sh
+docker compose down
+```
+Ne pas ajouter `-v` si tu souhaites conserver le contenu de la base.
+
+---
 
 ## Configuration du service Abonnements
 
-Compose construit le service Nest.js depuis `subscriptions-service/` et le démarre sous le nom `subscriptions` sur le réseau Docker privé `parking`. Il écoute le port `8082` dans le conteneur ; ce port n'est pas publié sur l'ordinateur et le frontend ne le route pas encore. La base commune est fournie par le service `db`.
+Compose construit le service Nest.js depuis `subscriptions-service/` et le démarre sous le nom `subscriptions` sur le réseau Docker privé `parking`. Il écoute le port `8082` dans le conteneur et le frontend relaie ses routes. La base commune est fournie par le service `db`.
 
 Variables utilisées par le service :
 
 - `PORT` : port HTTP interne, défini à `8082` dans Compose.
 - `DB_URL` : adresse PostgreSQL interne, définie à `postgres://db:5432/parking`.
-- `DB_USER` et `DB_PASSWORD` : identifiants PostgreSQL. `DB_PASSWORD` doit être défini dans le fichier local `.env` (copié depuis `.env.example`) ; ne pas publier ce fichier.
+- `DB_USER` et `DB_PASSWORD` : identifiants PostgreSQL. Compose fournit une valeur locale par défaut ; `.env` peut la remplacer.
 - `NODE_ENV` : défini à `production` dans Compose.
 
-Routes actuellement disponibles : `POST /api/subscriptions` pour créer un abonnement au prix configuré côté serveur et `GET /api/subscriptions/me` pour consulter ceux du conducteur connecté. Les routes exigent un principal de session avec le rôle `CONDUCTEUR` ; le raccordement à l'authentification commune reste à faire. Aucun contrat d'appel direct depuis Places, Réservations ou Tarifs n'est défini pour l'instant. Voir le [README du service](subscriptions-service/README.md) pour les migrations, les prix et les tests.
+Routes disponibles : `POST /api/subscriptions` pour créer un abonnement au prix configuré côté serveur et `GET /api/subscriptions/me` pour consulter ceux du conducteur connecté. Le service valide le cookie de session auprès d'Auth ; les appels internes de Tarifs utilisent un compte machine distinct. Voir le [README du service](subscriptions-service/README.md) pour les migrations, les prix et les tests.
 
-Ouvrir [http://127.0.0.1:8080](http://127.0.0.1:8080). Le frontend est le seul port publié, sur loopback. La première construction télécharge Java, Maven et les dépendances. Le cookie local peut circuler en HTTP uniquement dans cette installation ; pour un déploiement en ligne, configurer HTTPS et conserver Secure.
+### Démarrer seulement une partie des services
 
-Cette installation crée son propre volume `shared-data` et une base commune aux services qui seront ajoutés. Elle ne réutilise ni ne modifie le conteneur existant `parking-db`. Les SQL s'exécutent seulement lors de l'initialisation d'une base vide. Un volume existant exige une revue et une application explicite des migrations manquantes ; ne jamais supprimer le volume pour contourner une erreur.
+Les fichiers `compose.reservations.yml`, `compose.places.yml` et `compose.tarifs.yml` restent disponibles pour les scénarios de développement partiels. Ils ne sont pas requis pour l'application complète. Voir [PLACES_INTEGRATION.md](PLACES_INTEGRATION.md) et le [guide Tarifs](tarifs-service/docs/INTEGRATION_BADR.md) pour ces intégrations spécifiques.
 
-Créer ensuite les comptes avec la procédure interactive locale :
-
-```powershell
-docker compose -f compose.reservations.yml run --rm --no-deps -it reservations java -jar /app/app.jar --spring.profiles.active=provision --spring.main.web-application-type=none
-```
-
-Le mot de passe est masqué et confirmé. Choisir les rôles nécessaires, sans attribuer ADMIN à tous les comptes. Aucun compte ni mot de passe prédéfini n'est créé. Le compte et les rôles sont enregistrés dans la base de cette installation.
-
-Les URL et identifiants Places/Tarifs sont vides par défaut. La connexion et la consultation fonctionnent sans ces services ; un devis, une réservation ou un calcul final dépendant d'un partenaire répond `503` tant qu'il n'est pas configuré. Aucun faux tarif ou fausse place n'est utilisé dans l'application. Le formulaire charge la liste réelle de Places et permet de choisir une place par son numéro. Sans Places, il explique l'indisponibilité et propose de réessayer.
-
-Pour assembler Réservations et Places, renseigner les deux comptes machine dans `.env`, puis utiliser `docker compose -f compose.reservations.yml -f compose.places.yml up --build -d`. Voir [PLACES_INTEGRATION.md](PLACES_INTEGRATION.md) pour les variables et les migrations. Cet assemblage active la synchronisation Places ; il ne fournit pas encore les API Tarifs.
-
-Pour arrêter : `docker compose -f compose.reservations.yml down` (sans `-v` : conserver les données).
-
-## Ajouter Tarifs
-
-Dans `.env`, renseigner `TARIFFS_API_USER` et `TARIFFS_API_PASSWORD` pour les appels de Réservations vers Tarifs. Pour la validation des sessions dans l'autre sens, renseigner `AUTH_TARIFFS_USER`, `AUTH_TARIFS_SECRET` et `AUTH_TARIFFS_PASSWORD_HASH`. L'empreinte Argon2 correspond au secret et doit être entourée d'apostrophes. Voir [le guide Tarifs](tarifs-service/docs/INTEGRATION_BADR.md) pour le contrat des API.
-
-```powershell
-docker compose -f compose.reservations.yml -f compose.places.yml -f compose.tarifs.yml up --build -d
-```
-
-Sur une base neuve, l'overlay charge `tarifs.sql` à l'initialisation. Sur une installation existante, sauvegarder la base, vérifier que `tarif_horaire` manque, puis appliquer le script sur la base Compose en cours d'exécution avant de démarrer Tarifs.
-
-```powershell
-Get-Content -Raw tarifs-service/src/main/resources/db/tarifs.sql | docker compose -f compose.reservations.yml exec -T db psql -U parking -d parking -v ON_ERROR_STOP=1 --single-transaction
-```
-
-Le frontend transmet `/api/tarifs/` à Tarifs. Les calculs internes restent accessibles sur le réseau Compose. Les devis et les compléments de départ renvoient une erreur tant que la recherche de réduction dans Abonnements reste indisponible.
+Le frontend est le seul port publié par défaut, sur loopback. Le cookie local circule en HTTP uniquement dans cette installation ; pour un déploiement en ligne, configurer HTTPS.
 
 ## Vérifier le module
 

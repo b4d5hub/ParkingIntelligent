@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 const response = (status, data) => ({ status, ok: status >= 200 && status < 300, json: async () => data });
 let instance = 0;
-async function client() { return import(`../api.js?test=${instance++}`); }
+async function client() { return import(`../js/api.js?test=${instance++}`); }
 test('modification fetches CSRF and uses a same-origin cookie and stable idempotency key', async () => {
   const calls = []; globalThis.fetch = async (path, options) => {
     calls.push({ path, options });

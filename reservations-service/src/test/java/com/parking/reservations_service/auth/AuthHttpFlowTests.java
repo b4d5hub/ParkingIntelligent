@@ -28,6 +28,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@org.junit.jupiter.api.Disabled("Legacy embedded auth tests, superseded by auth-service")
 @WebMvcTest(value = AuthController.class, properties = "parking.auth.login-account-limit=1000")
 @ActiveProfiles("auth")
 @Import({AuthAccountConfiguration.class, AuthWebSecurityConfiguration.class})

@@ -6,23 +6,29 @@ services:
   reservations:
     environment:
       TARIFFS_API_URL: http://tarifs:8082
-      TARIFFS_API_USER: ${TARIFFS_API_USER:?Definir TARIFFS_API_USER dans .env}
-      TARIFFS_API_PASSWORD: ${TARIFFS_API_PASSWORD:?Definir TARIFFS_API_PASSWORD dans .env}
-      AUTH_TARIFFS_USER: ${AUTH_TARIFFS_USER:?Definir AUTH_TARIFFS_USER dans .env}
-      AUTH_TARIFFS_PASSWORD_HASH: ${AUTH_TARIFFS_PASSWORD_HASH:?Definir AUTH_TARIFFS_PASSWORD_HASH dans .env}
+      TARIFFS_API_USER: ${TARIFFS_API_USER:-reservations-tarifs-local}
+      TARIFFS_API_PASSWORD: ${TARIFFS_API_PASSWORD:-local-tarifs-api-2026}
+      AUTH_TARIFFS_USER: ${AUTH_TARIFFS_USER:-tarifs-auth-local}
   tarifs:
     build: ./tarifs-service
     environment:
       PORT: '8082'
       DB_URL: jdbc:postgresql://db:5432/parking
       DB_USER: parking
-      DB_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD dans .env}
-      INTERNAL_CALLER_USER: ${TARIFFS_API_USER:?Definir TARIFFS_API_USER dans .env}
-      INTERNAL_CALLER_SECRET: ${TARIFFS_API_PASSWORD:?Definir TARIFFS_API_PASSWORD dans .env}
-      AUTH_SERVICE_URL: http://reservations:8081
-      AUTH_TARIFS_USER: ${AUTH_TARIFFS_USER:?Definir AUTH_TARIFFS_USER dans .env}
-      AUTH_TARIFS_SECRET: ${AUTH_TARIFS_SECRET:?Definir AUTH_TARIFS_SECRET dans .env}
+      DB_PASSWORD: ${DB_PASSWORD:-parking-local-db-password}
+      INTERNAL_CALLER_USER: ${TARIFFS_API_USER:-reservations-tarifs-local}
+      INTERNAL_CALLER_SECRET: ${TARIFFS_API_PASSWORD:-local-tarifs-api-2026}
+      AUTH_SERVICE_URL: ${AUTH_SERVICE_URL:-http://auth:8083}
+      AUTH_TARIFS_USER: ${AUTH_TARIFFS_USER:-tarifs-auth-local}
+      AUTH_TARIFS_SECRET: ${AUTH_TARIFS_SECRET:-local-tarifs-auth-2026}
       TARIFS_CURRENCY: ${TARIFS_CURRENCY:-MAD}
+      SUBSCRIPTIONS_API_URL: ${SUBSCRIPTIONS_API_URL:-http://subscriptions:8082}
+      SUBSCRIPTIONS_API_USER: ${SUBSCRIPTIONS_API_USER:-tarifs-subscriptions-local}
+      SUBSCRIPTIONS_API_PASSWORD: ${SUBSCRIPTIONS_API_PASSWORD:-local-subscriptions-api-2026}
     depends_on:
       db: {condition: service_healthy}
     networks: [parking]
+  subscriptions:
+    environment:
+      SUBSCRIPTIONS_INTERNAL_USER: ${SUBSCRIPTIONS_API_USER:-tarifs-subscriptions-local}
+      SUBSCRIPTIONS_INTERNAL_PASSWORD: ${SUBSCRIPTIONS_API_PASSWORD:-local-subscriptions-api-2026}

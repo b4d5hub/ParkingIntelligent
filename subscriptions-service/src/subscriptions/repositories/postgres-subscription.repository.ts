@@ -2,9 +2,9 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Pool, type QueryResultRow } from 'pg';
 import { DATABASE_POOL } from '../../database/database.module';
 import { SubscriptionEntity } from '../entities/subscription.entity';
-import type { SubscriptionPeriod, SubscriptionPrice } from '../entities/subscription.entity';
+import type { SubscriptionPeriod, SubscriptionPrice, SubscriptionStatus } from '../entities/subscription.entity';
 import { SubscriptionNotFoundError, SubscriptionPaymentConflictError } from './subscription.repository';
-import type { NewSubscription, SubscriptionPriceRepository, SubscriptionRepository } from './subscription.repository';
+import type { NewSubscription, PaginatedSubscriptions, SubscriptionPriceRepository, SubscriptionRepository } from './subscription.repository';
 
 interface SubscriptionRow extends QueryResultRow {
   id: string; user_id: string; period: SubscriptionPeriod; starts_at: Date; ends_at: Date;
@@ -33,10 +33,12 @@ export class PostgresSubscriptionRepository implements SubscriptionRepository, S
   constructor(@Inject(DATABASE_POOL) private readonly pool: Pool) {}
 
   async create(input: NewSubscription): Promise<SubscriptionEntity> {
+    const status = input.status ?? 'ACTIVE';
+    const paymentReference = input.paymentReference ?? null;
     const { rows } = await this.pool.query<SubscriptionRow>(
-      `INSERT INTO subscriptions (user_id, period, starts_at, ends_at, price, currency, status)
-       VALUES ($1, $2, $3, $4, $5, $6, 'PENDING_PAYMENT') RETURNING *`,
-      [input.userId, input.period, input.startsAt, input.endsAt, input.price, input.currency],
+      `INSERT INTO subscriptions (user_id, period, starts_at, ends_at, price, currency, status, payment_reference)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [input.userId, input.period, input.startsAt, input.endsAt, input.price, input.currency, status, paymentReference],
     );
     return mapEntity(rows[0]);
   }
@@ -119,5 +121,148 @@ export class PostgresSubscriptionRepository implements SubscriptionRepository, S
        WHERE period = $1 AND active = TRUE`, [period],
     );
     return rows[0] ?? null;
+  }
+
+  async findAllActivePrices(): Promise<SubscriptionPrice[]> {
+    const { rows } = await this.pool.query<{ period: SubscriptionPeriod; price: string; currency: string }>(
+      `SELECT period, price::text AS price, currency FROM subscription_prices
+       WHERE active = TRUE
+       ORDER BY CASE period
+         WHEN 'DAILY' THEN 1
+         WHEN 'WEEKLY' THEN 2
+         WHEN 'MONTHLY' THEN 3
+         WHEN 'ANNUAL' THEN 4
+         ELSE 5
+       END, price ASC`,
+    );
+    return rows;
+  }
+
+  async findAllPrices(): Promise<SubscriptionPrice[]> {
+    const { rows } = await this.pool.query<{
+      period: SubscriptionPeriod;
+      price: string;
+      currency: string;
+      active: boolean;
+      updated_at: Date;
+    }>(
+      `SELECT period, price::text AS price, currency, active, updated_at
+       FROM subscription_prices
+       ORDER BY CASE period
+         WHEN 'DAILY' THEN 1
+         WHEN 'WEEKLY' THEN 2
+         WHEN 'MONTHLY' THEN 3
+         WHEN 'ANNUAL' THEN 4
+         ELSE 5
+       END, price ASC`,
+    );
+    return rows.map((r) => ({
+      period: r.period,
+      price: r.price,
+      currency: r.currency,
+      active: r.active,
+      updatedAt: r.updated_at,
+    }));
+  }
+
+  async updatePrice(period: SubscriptionPeriod, price: string, active: boolean): Promise<SubscriptionPrice> {
+    const { rows } = await this.pool.query<{
+      period: SubscriptionPeriod;
+      price: string;
+      currency: string;
+      active: boolean;
+      updated_at: Date;
+    }>(
+      `UPDATE subscription_prices
+       SET price = $2, active = $3, updated_at = CURRENT_TIMESTAMP
+       WHERE period = $1
+       RETURNING period, price::text AS price, currency, active, updated_at`,
+      [period, price, active],
+    );
+    if (!rows[0]) {
+      throw new SubscriptionNotFoundError(`Formule ${period} introuvable.`);
+    }
+    return {
+      period: rows[0].period,
+      price: rows[0].price,
+      currency: rows[0].currency,
+      active: rows[0].active,
+      updatedAt: rows[0].updated_at,
+    };
+  }
+
+  async findAllPaginated(page: number, size: number, status?: SubscriptionStatus): Promise<PaginatedSubscriptions> {
+    const offset = page * size;
+    const countSql = `SELECT count(*)::int AS total FROM subscriptions WHERE ($1::text IS NULL OR status = $1)`;
+    const countRes = await this.pool.query<{ total: number }>(countSql, [status ?? null]);
+    const totalElements = countRes.rows[0]?.total ?? 0;
+    const totalPages = Math.ceil(totalElements / size);
+
+    const dataSql = `
+      SELECT * FROM subscriptions
+      WHERE ($1::text IS NULL OR status = $1)
+      ORDER BY created_at DESC
+      LIMIT $2 OFFSET $3
+    `;
+    const { rows } = await this.pool.query<SubscriptionRow>(dataSql, [status ?? null, size, offset]);
+    return {
+      content: rows.map(mapEntity),
+      page,
+      size,
+      totalElements,
+      totalPages,
+    };
+  }
+
+  async cancel(id: string, userId: string): Promise<SubscriptionEntity> {
+    const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id);
+    if (!isUuid) {
+      throw new SubscriptionNotFoundError('Subscription not found.');
+    }
+
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows } = await client.query<SubscriptionRow>(
+        'SELECT * FROM subscriptions WHERE id = $1 FOR UPDATE',
+        [id],
+      );
+      if (!rows[0] || rows[0].user_id !== userId) {
+        throw new SubscriptionNotFoundError('Subscription not found.');
+      }
+      const current = mapEntity(rows[0]);
+      if (current.status === 'EXPIRED' || current.status === 'CANCELLED') {
+        throw new SubscriptionPaymentConflictError(
+          `Subscription is already ${current.status.toLowerCase()}.`,
+        );
+      }
+      if (current.status !== 'ACTIVE') {
+        throw new SubscriptionPaymentConflictError(
+          `Subscription in state ${current.status} cannot be cancelled.`,
+        );
+      }
+      const { rows: updated } = await client.query<SubscriptionRow>(
+        `UPDATE subscriptions SET status = 'CANCELLED' WHERE id = $1 RETURNING *`,
+        [id],
+      );
+      await client.query('COMMIT');
+      return mapEntity(updated[0]);
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async hasActiveSubscription(userId: string, start: Date, end: Date): Promise<boolean> {
+    const { rows } = await this.pool.query(
+      `SELECT 1 FROM subscriptions
+       WHERE user_id = $1 AND status = 'ACTIVE'
+         AND starts_at <= $2 AND ends_at >= $3
+       LIMIT 1`,
+      [userId, start, end],
+    );
+    return rows.length > 0;
   }
 }

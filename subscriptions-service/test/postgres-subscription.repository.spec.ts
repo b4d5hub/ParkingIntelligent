@@ -63,4 +63,167 @@ describe('PostgresSubscriptionRepository payment transition', () => {
     await expect(repository.activateAfterPayment(pendingRow.id, 'pay-123')).rejects.toThrow('not awaiting payment');
     expect(client.release).toHaveBeenCalledOnce();
   });
+
+  it('checks for active subscription covering requested interval', async () => {
+    const pool = { query: vi.fn().mockResolvedValue({ rows: [{ 1: 1 }] }) } as unknown as Pool;
+    const repo = new PostgresSubscriptionRepository(pool);
+    const start = new Date('2026-04-01T10:00:00.000Z');
+    const end = new Date('2026-04-01T12:00:00.000Z');
+    const hasActive = await repo.hasActiveSubscription('42', start, end);
+    expect(hasActive).toBe(true);
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT 1 FROM subscriptions'),
+      ['42', start, end],
+    );
+  });
+
+  it('creates an active subscription with payment reference', async () => {
+    const pool = {
+      query: vi.fn().mockResolvedValue({
+        rows: [{
+          ...pendingRow,
+          status: 'ACTIVE',
+          payment_reference: 'SIM-test-ref',
+        }],
+      }),
+    } as unknown as Pool;
+    const repo = new PostgresSubscriptionRepository(pool);
+    const result = await repo.create({
+      userId: '42',
+      period: 'MONTHLY',
+      startsAt: pendingRow.starts_at,
+      endsAt: pendingRow.ends_at,
+      price: '450.00',
+      currency: 'MAD',
+      status: 'ACTIVE',
+      paymentReference: 'SIM-test-ref',
+    });
+    expect(result.status).toBe('ACTIVE');
+    expect(result.paymentReference).toBe('SIM-test-ref');
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO subscriptions'),
+      expect.arrayContaining(['42', 'MONTHLY', 'ACTIVE', 'SIM-test-ref']),
+    );
+  });
+
+  it('findAllActivePrices returns active prices in catalog', async () => {
+    const mockPrices = [
+      { period: 'DAILY', price: '40.00', currency: 'MAD' },
+      { period: 'WEEKLY', price: '180.00', currency: 'MAD' },
+    ];
+    const pool = { query: vi.fn().mockResolvedValue({ rows: mockPrices }) } as unknown as Pool;
+    const repo = new PostgresSubscriptionRepository(pool);
+    const prices = await repo.findAllActivePrices();
+    expect(prices).toEqual(mockPrices);
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT period, price::text AS price, currency FROM subscription_prices'),
+    );
+  });
+
+  describe('cancel', () => {
+    it('cancels an active subscription when requested by owner', async () => {
+      const activeRow = { ...pendingRow, status: 'ACTIVE', payment_reference: 'SIM-123' };
+      const cancelledRow = { ...activeRow, status: 'CANCELLED' };
+      vi.mocked(client.query)
+        .mockResolvedValueOnce({ rows: [] } as never) // BEGIN
+        .mockResolvedValueOnce({ rows: [activeRow] } as never) // SELECT FOR UPDATE
+        .mockResolvedValueOnce({ rows: [cancelledRow] } as never) // UPDATE
+        .mockResolvedValueOnce({ rows: [] } as never); // COMMIT
+
+      const result = await repository.cancel(pendingRow.id, '42');
+      expect(result.status).toBe('CANCELLED');
+      expect(client.query).toHaveBeenCalledTimes(4);
+      expect(client.release).toHaveBeenCalledOnce();
+    });
+
+    it('rejects cancellation for non-uuid id', async () => {
+      await expect(repository.cancel('invalid-id', '42')).rejects.toThrow('Subscription not found.');
+    });
+
+    it('rejects cancellation when subscription is not found', async () => {
+      vi.mocked(client.query)
+        .mockResolvedValueOnce({ rows: [] } as never) // BEGIN
+        .mockResolvedValueOnce({ rows: [] } as never) // SELECT FOR UPDATE
+        .mockResolvedValueOnce({ rows: [] } as never); // ROLLBACK
+
+      await expect(repository.cancel(pendingRow.id, '42')).rejects.toThrow('Subscription not found.');
+      expect(client.release).toHaveBeenCalledOnce();
+    });
+
+    it('rejects cancellation when requested by another user (returns not found)', async () => {
+      const activeRow = { ...pendingRow, status: 'ACTIVE', user_id: '42' };
+      vi.mocked(client.query)
+        .mockResolvedValueOnce({ rows: [] } as never) // BEGIN
+        .mockResolvedValueOnce({ rows: [activeRow] } as never) // SELECT FOR UPDATE
+        .mockResolvedValueOnce({ rows: [] } as never); // ROLLBACK
+
+      await expect(repository.cancel(pendingRow.id, '999')).rejects.toThrow('Subscription not found.');
+      expect(client.release).toHaveBeenCalledOnce();
+    });
+
+    it('rejects cancellation when subscription is already cancelled', async () => {
+      const cancelledRow = { ...pendingRow, status: 'CANCELLED', user_id: '42' };
+      vi.mocked(client.query)
+        .mockResolvedValueOnce({ rows: [] } as never) // BEGIN
+        .mockResolvedValueOnce({ rows: [cancelledRow] } as never) // SELECT FOR UPDATE
+        .mockResolvedValueOnce({ rows: [] } as never); // ROLLBACK
+
+      await expect(repository.cancel(pendingRow.id, '42')).rejects.toThrow('already cancelled');
+      expect(client.release).toHaveBeenCalledOnce();
+    });
+
+    it('rejects cancellation when subscription is expired', async () => {
+      const expiredRow = { ...pendingRow, status: 'EXPIRED', user_id: '42' };
+      vi.mocked(client.query)
+        .mockResolvedValueOnce({ rows: [] } as never) // BEGIN
+        .mockResolvedValueOnce({ rows: [expiredRow] } as never) // SELECT FOR UPDATE
+        .mockResolvedValueOnce({ rows: [] } as never); // ROLLBACK
+
+      await expect(repository.cancel(pendingRow.id, '42')).rejects.toThrow('already expired');
+      expect(client.release).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe('admin queries', () => {
+    it('findAllPrices returns all prices including inactive', async () => {
+      const pool = {
+        query: vi.fn().mockResolvedValue({
+          rows: [
+            { period: 'DAILY', price: '40.00', currency: 'MAD', active: true, updated_at: new Date() },
+            { period: 'WEEKLY', price: '180.00', currency: 'MAD', active: false, updated_at: new Date() },
+          ],
+        }),
+      } as unknown as Pool;
+      const repo = new PostgresSubscriptionRepository(pool);
+      const prices = await repo.findAllPrices();
+      expect(prices).toHaveLength(2);
+      expect(prices[1].active).toBe(false);
+    });
+
+    it('updatePrice updates price and active status', async () => {
+      const pool = {
+        query: vi.fn().mockResolvedValue({
+          rows: [
+            { period: 'DAILY', price: '45.00', currency: 'MAD', active: true, updated_at: new Date() },
+          ],
+        }),
+      } as unknown as Pool;
+      const repo = new PostgresSubscriptionRepository(pool);
+      const updated = await repo.updatePrice('DAILY', '45.00', true);
+      expect(updated.price).toBe('45.00');
+    });
+
+    it('findAllPaginated queries count and rows', async () => {
+      const pool = {
+        query: vi.fn()
+          .mockResolvedValueOnce({ rows: [{ total: 1 }] })
+          .mockResolvedValueOnce({ rows: [pendingRow] }),
+      } as unknown as Pool;
+      const repo = new PostgresSubscriptionRepository(pool);
+      const result = await repo.findAllPaginated(0, 20, 'PENDING_PAYMENT');
+      expect(result.totalElements).toBe(1);
+      expect(result.content).toHaveLength(1);
+      expect(result.page).toBe(0);
+    });
+  });
 });

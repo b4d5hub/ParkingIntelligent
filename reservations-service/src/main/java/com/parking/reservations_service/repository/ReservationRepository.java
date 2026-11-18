@@ -2,8 +2,10 @@ package com.parking.reservations_service.repository;
 
 import com.parking.reservations_service.entity.Reservation;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.repository.query.Param;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,7 +15,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface ReservationRepository extends JpaRepository<Reservation, Long> {
+public interface ReservationRepository extends JpaRepository<Reservation, Long>, JpaSpecificationExecutor<Reservation> {
     Page<Reservation> findByConducteurId(Long conducteurId, Pageable pageable);
     Optional<Reservation> findByIdAndConducteurId(Long id, Long conducteurId);
     Optional<Reservation> findByConducteurIdAndRequestKey(Long conducteurId, UUID requestKey);
@@ -41,4 +43,29 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     @Query("select r.id from Reservation r where r.statut = com.parking.reservations_service.entity.ReservationStatus.CONFIRMED and r.debutPrevu < :deadline order by r.id")
     List<Long> findNoShowIds(OffsetDateTime deadline, Pageable pageable);
+
+    @Query(value = """
+        SELECT r.statut AS statut, count(r.id) AS cnt
+        FROM reservations r
+        WHERE (CAST(:from AS timestamptz) IS NULL OR r.debut_prevu >= CAST(:from AS timestamptz))
+          AND (CAST(:to AS timestamptz) IS NULL OR r.debut_prevu <= CAST(:to AS timestamptz))
+        GROUP BY r.statut
+        """, nativeQuery = true)
+    List<Object[]> countByStatusNative(
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to);
+
+    @Query(value = """
+        SELECT
+            COALESCE(SUM(CASE WHEN r.statut <> 'CANCELLED' THEN COALESCE(r.booking_paid, 0) + COALESCE(r.extra_paid, 0) ELSE 0 END), 0) AS revenue,
+            COUNT(CASE WHEN r.statut = 'COMPLETED' THEN 1 END) AS completed_count,
+            COALESCE(AVG(CASE WHEN r.statut = 'COMPLETED' AND r.depart_reel IS NOT NULL AND r.arrivee_reelle IS NOT NULL
+                              THEN EXTRACT(EPOCH FROM (r.depart_reel - r.arrivee_reelle)) / 60.0 END), 0.0) AS avg_duration_minutes
+        FROM reservations r
+        WHERE (CAST(:from AS timestamptz) IS NULL OR r.debut_prevu >= CAST(:from AS timestamptz))
+          AND (CAST(:to AS timestamptz) IS NULL OR r.debut_prevu <= CAST(:to AS timestamptz))
+        """, nativeQuery = true)
+    List<Object[]> computeStatsNative(
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to);
 }
