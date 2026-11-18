@@ -111,7 +111,7 @@ export function renderDriverReservePage() {
     type: 'text',
     name: 'typeVehicule',
     maxlength: 32,
-    pattern: '[A-Za-z0-9_-]{1,32}',
+    pattern: '[A-Za-z0-9_\\x2d]{1,32}',
     value: 'VOITURE',
     required: true
   });
