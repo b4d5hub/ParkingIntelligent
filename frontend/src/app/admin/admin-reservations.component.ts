@@ -1,5 +1,6 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { AdminPageBannerComponent } from './admin-page-banner.component';
 import { api } from '../../../js/api.js';
 import { assertCurrentSession, isCurrentSession, sessionRevision } from '../../../js/session.js';
 import { buildQueryString, formatDate, formatMoney, validateDateRange } from '../../../js/ui/formatters.js';
@@ -12,48 +13,47 @@ type Reservation = { id: string | number; conducteurId: string | number; placeId
 @Component({
   selector: 'parking-admin-reservations',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, AdminPageBannerComponent],
   host: { class: 'block' },
   template: `
     <main class="mx-auto w-full max-w-7xl space-y-5 px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      <header class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div><p class="m-0 text-[0.67rem] font-bold tracking-[0.14em] text-emerald-800">ESPACE ADMINISTRATEUR</p><h1 class="mb-1 mt-1 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">Réservations</h1><p class="m-0 text-sm text-slate-500">Consultez et filtrez les réservations du parking.</p></div>
-        <button class="min-h-10 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60" type="button" [disabled]="loading" (click)="loadReservations(currentPage)">{{ loading ? 'Actualisation…' : 'Actualiser' }}</button>
-      </header>
+      <parking-admin-banner title="Réservations" description="Consultez et filtrez les réservations du parking." code="04">
+        <button banner-action class="min-h-10 rounded-lg border border-white/15 bg-[#fcfdff]/[0.06] px-4 py-2 text-sm font-semibold text-white hover:bg-[#fcfdff]/10 disabled:opacity-60" type="button" [disabled]="loading" (click)="loadReservations(currentPage)">↻ {{ loading ? 'Actualisation…' : 'Actualiser' }}</button>
+      </parking-admin-banner>
 
-      <form class="space-y-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" aria-label="Filtres de réservations" (ngSubmit)="applyFilters()">
+      <form class="space-y-4 rounded-2xl border border-[#d6dee8] bg-[#fcfdff] p-4 shadow-sm sm:p-5" aria-label="Filtres de réservations" (ngSubmit)="applyFilters()">
         <div class="flex items-center justify-between gap-3"><div><h2 class="m-0 text-sm font-bold text-slate-900">Filtres de recherche</h2><p class="mb-0 mt-1 text-xs text-slate-500">Combinez un statut, une période ou un identifiant.</p></div><span class="hidden rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600 sm:inline">{{ totalElements }} résultat{{ totalElements > 1 ? 's' : '' }}</span></div>
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <label class="grid gap-1 text-xs font-semibold text-slate-600">Statut<select class="h-10 rounded-lg border border-slate-300 bg-slate-50 px-2.5 text-sm font-normal text-slate-800" name="status" [(ngModel)]="draftFilters.status"><option value="">Tous les statuts</option><option value="CONFIRMED">Confirmée</option><option value="IN_PROGRESS">En cours</option><option value="COMPLETED">Terminée</option><option value="CANCELLED">Annulée</option><option value="EXPIRED">Expirée</option></select></label>
-          <label class="grid gap-1 text-xs font-semibold text-slate-600">Du (date début)<input class="h-10 rounded-lg border border-slate-300 bg-slate-50 px-2.5 text-sm font-normal" type="date" name="from" [(ngModel)]="draftFilters.from"></label>
-          <label class="grid gap-1 text-xs font-semibold text-slate-600">Au (date fin)<input class="h-10 rounded-lg border border-slate-300 bg-slate-50 px-2.5 text-sm font-normal" type="date" name="to" [(ngModel)]="draftFilters.to"></label>
-          <label class="grid gap-1 text-xs font-semibold text-slate-600">N° Place (ID)<input class="h-10 rounded-lg border border-slate-300 bg-slate-50 px-2.5 text-sm font-normal" type="number" name="placeId" min="1" placeholder="Ex. 1" [(ngModel)]="draftFilters.placeId"></label>
-          <label class="grid gap-1 text-xs font-semibold text-slate-600">Conducteur (ID)<input class="h-10 rounded-lg border border-slate-300 bg-slate-50 px-2.5 text-sm font-normal" type="number" name="conducteurId" min="1" placeholder="Ex. 2" [(ngModel)]="draftFilters.conducteurId"></label>
+          <label class="grid gap-1 text-xs font-semibold text-slate-600">Statut<select class="h-10 rounded-lg border border-[#cbd5df] bg-[#eef4f8] px-2.5 text-sm font-normal text-slate-800" name="status" [(ngModel)]="draftFilters.status"><option value="">Tous les statuts</option><option value="CONFIRMED">Confirmée</option><option value="IN_PROGRESS">En cours</option><option value="COMPLETED">Terminée</option><option value="CANCELLED">Annulée</option><option value="EXPIRED">Expirée</option></select></label>
+          <label class="grid gap-1 text-xs font-semibold text-slate-600">Du (date début)<input class="h-10 rounded-lg border border-[#cbd5df] bg-[#eef4f8] px-2.5 text-sm font-normal" type="date" name="from" [(ngModel)]="draftFilters.from"></label>
+          <label class="grid gap-1 text-xs font-semibold text-slate-600">Au (date fin)<input class="h-10 rounded-lg border border-[#cbd5df] bg-[#eef4f8] px-2.5 text-sm font-normal" type="date" name="to" [(ngModel)]="draftFilters.to"></label>
+          <label class="grid gap-1 text-xs font-semibold text-slate-600">N° Place (ID)<input class="h-10 rounded-lg border border-[#cbd5df] bg-[#eef4f8] px-2.5 text-sm font-normal" type="number" name="placeId" min="1" placeholder="Ex. 1" [(ngModel)]="draftFilters.placeId"></label>
+          <label class="grid gap-1 text-xs font-semibold text-slate-600">Conducteur (ID)<input class="h-10 rounded-lg border border-[#cbd5df] bg-[#eef4f8] px-2.5 text-sm font-normal" type="number" name="conducteurId" min="1" placeholder="Ex. 2" [(ngModel)]="draftFilters.conducteurId"></label>
         </div>
         @if (filterError) { <p class="m-0 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-900" role="alert">{{ filterError }}</p> }
-        <div class="flex flex-wrap gap-2"><button class="min-h-10 rounded-lg bg-emerald-900 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-950 disabled:opacity-60" type="submit" [disabled]="loading">Appliquer les filtres</button><button class="min-h-10 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50" type="button" (click)="resetFilters()">Réinitialiser</button></div>
+        <div class="flex flex-wrap gap-2"><button class="min-h-10 rounded-lg bg-[#101d2c] px-4 py-2 text-sm font-semibold text-white hover:bg-[#263649] disabled:opacity-60" type="submit" [disabled]="loading">Appliquer les filtres</button><button class="min-h-10 rounded-lg border border-[#cbd5df] px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-[#eef4f8]" type="button" (click)="resetFilters()">Réinitialiser</button></div>
       </form>
 
-      <section class="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5" aria-label="Résultats des réservations">
+      <section class="min-w-0 rounded-2xl border border-[#d6dee8] bg-[#fcfdff] p-4 shadow-sm sm:p-5" aria-label="Résultats des réservations">
         <div class="mb-4 flex flex-wrap items-center justify-between gap-2"><div><h2 class="m-0 text-base font-bold text-slate-900">Toutes les réservations</h2><p class="mb-0 mt-1 text-xs text-slate-500" role="status">{{ statusMessage }}</p></div><span class="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600 sm:hidden">{{ totalElements }} résultat{{ totalElements > 1 ? 's' : '' }}</span></div>
         @if (loading) {
-          <div class="rounded-xl bg-slate-50 p-8 text-center text-sm text-slate-500">Chargement des réservations…</div>
+          <div class="rounded-xl bg-[#eef4f8] p-8 text-center text-sm text-slate-500">Chargement des réservations…</div>
         } @else if (errorMessage) {
           <div class="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900" role="alert">{{ errorMessage }}</div>
         } @else if (reservations.length === 0) {
-          <div class="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500">Aucune réservation ne correspond à vos filtres.</div>
+          <div class="rounded-xl border border-dashed border-[#cbd5df] p-8 text-center text-sm text-slate-500">Aucune réservation ne correspond à vos filtres.</div>
         } @else {
-          <div class="overflow-x-auto rounded-xl border border-slate-200">
+          <div class="overflow-x-auto rounded-xl border border-[#d6dee8]">
             <table class="min-w-[1050px] w-full divide-y divide-slate-200 text-left text-sm">
-              <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500"><tr><th class="px-3 py-3">ID</th><th class="px-3 py-3">Conducteur</th><th class="px-3 py-3">Place</th><th class="px-3 py-3">Début prévu</th><th class="px-3 py-3">Fin prévue</th><th class="px-3 py-3">Statut</th><th class="px-3 py-3">Arrivée réelle</th><th class="px-3 py-3">Départ réel</th><th class="px-3 py-3 text-right">Montant</th></tr></thead>
-              <tbody class="divide-y divide-slate-100 bg-white">
+              <thead class="bg-[#eef4f8] text-xs font-semibold uppercase tracking-wide text-slate-500"><tr><th class="px-3 py-3">ID</th><th class="px-3 py-3">Conducteur</th><th class="px-3 py-3">Place</th><th class="px-3 py-3">Début prévu</th><th class="px-3 py-3">Fin prévue</th><th class="px-3 py-3">Statut</th><th class="px-3 py-3">Arrivée réelle</th><th class="px-3 py-3">Départ réel</th><th class="px-3 py-3 text-right">Montant</th></tr></thead>
+              <tbody class="divide-y divide-slate-100 bg-[#fcfdff]">
                 @for (reservation of reservations; track reservation.id) {
-                  <tr class="align-top hover:bg-slate-50"><td class="whitespace-nowrap px-3 py-3 font-semibold text-slate-900">#{{ reservation.id }}</td><td class="whitespace-nowrap px-3 py-3 text-slate-700">ID {{ reservation.conducteurId }}</td><td class="whitespace-nowrap px-3 py-3 text-slate-700">Place {{ reservation.placeId }}</td><td class="whitespace-nowrap px-3 py-3 text-slate-600">{{ formatDate(reservation.debutPrevu) }}</td><td class="whitespace-nowrap px-3 py-3 text-slate-600">{{ formatDate(reservation.finPrevue) }}</td><td class="whitespace-nowrap px-3 py-3"><span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="statusClass(reservation.statut)">{{ reservationStatus(reservation.statut) }}</span></td><td class="whitespace-nowrap px-3 py-3 text-slate-600">{{ formatDate(reservation.arriveeReelle) }}</td><td class="whitespace-nowrap px-3 py-3 text-slate-600">{{ formatDate(reservation.departReel) }}</td><td class="whitespace-nowrap px-3 py-3 text-right font-semibold text-slate-900">{{ formatMoney(amount(reservation), reservation.devise || 'MAD') }}</td></tr>
+                  <tr class="align-top hover:bg-[#eef4f8]"><td class="whitespace-nowrap px-3 py-3 font-semibold text-slate-900">#{{ reservation.id }}</td><td class="whitespace-nowrap px-3 py-3 text-slate-700">ID {{ reservation.conducteurId }}</td><td class="whitespace-nowrap px-3 py-3 text-slate-700">Place {{ reservation.placeId }}</td><td class="whitespace-nowrap px-3 py-3 text-slate-600">{{ formatDate(reservation.debutPrevu) }}</td><td class="whitespace-nowrap px-3 py-3 text-slate-600">{{ formatDate(reservation.finPrevue) }}</td><td class="whitespace-nowrap px-3 py-3"><span class="rounded-full px-2.5 py-1 text-xs font-semibold" [class]="statusClass(reservation.statut)">{{ reservationStatus(reservation.statut) }}</span></td><td class="whitespace-nowrap px-3 py-3 text-slate-600">{{ formatDate(reservation.arriveeReelle) }}</td><td class="whitespace-nowrap px-3 py-3 text-slate-600">{{ formatDate(reservation.departReel) }}</td><td class="whitespace-nowrap px-3 py-3 text-right font-semibold text-slate-900">{{ formatMoney(amount(reservation), reservation.devise || 'MAD') }}</td></tr>
                 }
               </tbody>
             </table>
           </div>
-          <div class="mt-4 flex flex-wrap items-center justify-between gap-3"><p class="m-0 text-xs text-slate-500">Page {{ currentPage + 1 }} sur {{ totalPages }}</p><div class="flex gap-2"><button class="min-h-9 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40" type="button" [disabled]="currentPage === 0 || loading" (click)="loadReservations(currentPage - 1)">← Précédent</button><button class="min-h-9 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40" type="button" [disabled]="currentPage >= totalPages - 1 || loading" (click)="loadReservations(currentPage + 1)">Suivant →</button></div></div>
+          <div class="mt-4 flex flex-wrap items-center justify-between gap-3"><p class="m-0 text-xs text-slate-500">Page {{ currentPage + 1 }} sur {{ totalPages }}</p><div class="flex gap-2"><button class="min-h-9 rounded-lg border border-[#cbd5df] px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-[#eef4f8] disabled:opacity-40" type="button" [disabled]="currentPage === 0 || loading" (click)="loadReservations(currentPage - 1)">← Précédent</button><button class="min-h-9 rounded-lg border border-[#cbd5df] px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-[#eef4f8] disabled:opacity-40" type="button" [disabled]="currentPage >= totalPages - 1 || loading" (click)="loadReservations(currentPage + 1)">Suivant →</button></div></div>
         }
       </section>
     </main>
@@ -88,7 +88,7 @@ export class AdminReservationsComponent implements OnInit, OnDestroy {
     switch (status) {
       case 'CONFIRMED': return 'bg-sky-50 text-sky-800';
       case 'IN_PROGRESS': return 'bg-amber-50 text-amber-900';
-      case 'COMPLETED': return 'bg-emerald-50 text-emerald-800';
+      case 'COMPLETED': return 'bg-[#eff9d9] text-[#405624]';
       case 'CANCELLED': return 'bg-slate-100 text-slate-700';
       case 'EXPIRED': return 'bg-rose-50 text-rose-800';
       default: return 'bg-slate-100 text-slate-700';

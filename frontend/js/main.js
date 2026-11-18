@@ -8,10 +8,6 @@ import { createDomNode } from './ui/formatters.js';
 import { showToast } from './ui/toast.js';
 
 import { renderLoginPage } from './pages/login.js';
-import { renderDriverReservePage } from './pages/driver-reserve.js';
-import { renderDriverHistoryPage } from './pages/driver-history.js';
-import { renderSubscriptionsPage } from './pages/subscriptions.js';
-import { renderAgentOperationsPage } from './pages/agent-operations.js';
 
 const identityContainer = document.getElementById('identity');
 const displayNameEl = document.getElementById('display-name');
@@ -67,12 +63,14 @@ function updateNavigation() {
   const currentRoute = getCurrentRoute();
 
   for (const tab of tabs) {
-    const tabLink = createDomNode('a', tab.label, 'tab', {
+    const tabLink = createDomNode('a', tab.label, 'group relative inline-flex min-h-9 shrink-0 items-center rounded-lg px-3 py-2 text-xs font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c5f277] sm:text-sm', {
       href: tab.route
     });
     if (tab.route === currentRoute) {
-      tabLink.classList.add('active');
+      tabLink.classList.add('bg-[#c5f277]', 'text-[#101d2c]', 'hover:bg-[#d2fa8d]', 'hover:text-[#101d2c]');
       tabLink.setAttribute('aria-current', 'page');
+    } else {
+      tabLink.classList.add('text-slate-300', 'hover:bg-white/[0.06]', 'hover:text-white');
     }
     navEl.appendChild(tabLink);
   }
@@ -101,19 +99,19 @@ function renderRoute(route) {
       break;
 
     case ROUTES.RESERVE:
-      pageContentEl.appendChild(renderDriverReservePage());
+      // Écran rendu par Angular.
       break;
 
     case ROUTES.HISTORY:
-      pageContentEl.appendChild(renderDriverHistoryPage());
+      // Écran rendu par Angular.
       break;
 
     case ROUTES.SUBSCRIPTIONS:
-      pageContentEl.appendChild(renderSubscriptionsPage());
+      // Écran rendu par Angular.
       break;
 
     case ROUTES.OPERATIONS:
-      pageContentEl.appendChild(renderAgentOperationsPage());
+      // Écran rendu par Angular.
       break;
 
     case ROUTES.ADMIN_DASHBOARD:

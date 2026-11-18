@@ -1,8 +1,10 @@
 # Frontend Parking Intelligent
 
-Le frontend migre progressivement vers Angular avec Tailwind CSS. Angular gère l'écran de connexion et tous les écrans administrateur (tableau de bord, places, tarifs, abonnements, réservations et utilisateurs). Les écrans conducteur et agent restent montés depuis l'interface JavaScript historique pendant leur conversion.
+Le frontend utilise Angular avec Tailwind CSS pour l'écran de connexion et tous les espaces : administrateur (tableau de bord, places, tarifs, abonnements, réservations et utilisateurs), conducteur (réservation, historique et abonnements) et agent (arrivées et départs).
 
-Les composants Angular sont classés par fonctionnalité dans `src/app/` : `auth/` pour la connexion, `admin/` pour chaque écran d'administration et `app.component.ts` pour la coquille commune. Les utilitaires Tailwind sont compilés dans `src/tailwind.css`. Le CSS existant reste utilisé par les pages conducteur et agent ; Tailwind n'applique pas son reset global.
+Les composants Angular sont classés par fonctionnalité dans `src/app/` : `auth/` pour la connexion, `admin/` pour l'administration, `driver/` pour les parcours conducteur, `agent/` pour les opérations et `app.component.ts` pour la coquille commune. Les utilitaires Tailwind sont compilés dans `src/tailwind.css`. Le CSS historique est conservé dans une couche de compatibilité pour les styles partagés.
+
+Le tableau de bord admin présente les revenus, l’occupation, les réservations et la durée moyenne, avec des graphiques de répartition basés sur les statuts renvoyés par les services.
 
 ## Démarrage avec Docker
 
