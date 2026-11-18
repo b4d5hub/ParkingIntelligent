@@ -1,7 +1,4 @@
-*
-!Dockerfile
-!nginx.conf
-!index.html
-!styles.css
-!css/**
-!js/**
+node_modules
+dist
+.angular
+npm-debug.log

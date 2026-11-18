@@ -25,6 +25,7 @@ services:
     networks: [parking]
   auth:
     build: ./auth-service
+    restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: compose
       DB_URL: jdbc:postgresql://db:5432/parking
