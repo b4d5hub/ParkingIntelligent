@@ -2,10 +2,23 @@
 
 Ce document détaille les scénarios de test manuel pour vérifier chaque parcours utilisateur et chaque rôle sur l'application Parking Intelligent.
 
+## Tests E2E Cypress
+
+Les tests Cypress utilisent l'application réellement démarrée sur `http://127.0.0.1:8080` et le compte conducteur de démonstration. Depuis la racine du dépôt, démarre l'application puis, dans un autre terminal :
+
+```sh
+cd frontend
+npm ci
+read -rsp "Mot de passe conducteur : " CYPRESS_TEST_PASSWORD; export CYPRESS_TEST_PASSWORD; echo
+npm run e2e
+```
+
+Le mot de passe reste dans l'environnement du terminal et n'est pas enregistré dans le dépôt. Pour ouvrir l'interface Cypress et exécuter les tests en mode interactif, remplace `npm run e2e` par `npm run e2e:open`. Le serveur doit être démarré avant de lancer Cypress. Le parcours Conducteur vérifie une connexion réelle contre l'API. Les scénarios Agent, Administrateur et multirôles simulent la réponse de connexion pour vérifier séparément la navigation et les pages autorisées sans ajouter de dépendance aux données du serveur. Une capture PNG est enregistrée après chaque test réussi dans `cypress/screenshots/`; les anciennes captures sont conservées entre les exécutions.
+
 ---
 
 ## Comptes de Test Pré-configurés
-* Mot de passe unique pour tous les comptes : `Parking2026!Passphrase`
+Le mot de passe de test doit être fourni dans `CYPRESS_TEST_PASSWORD` au lancement des tests. Les identifiants ci-dessous sont des comptes de démonstration locaux ; remplace leurs mots de passe avant tout déploiement partagé.
 * **Conducteur** : `driver@parking.local`
 * **Agent de parking** : `agent@parking.local`
 * **Administrateur** : `admin@parking.local`

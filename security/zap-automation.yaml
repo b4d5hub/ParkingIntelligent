@@ -1,0 +1,34 @@
+---
+env:
+  contexts:
+    - name: parking-intelligent
+      urls:
+        - http://frontend:8080
+  parameters:
+    failOnError: true
+    failOnWarning: false
+    progressToStdout: true
+jobs:
+  - type: spider
+    parameters:
+      context: parking-intelligent
+      url: http://frontend:8080
+      maxDuration: 1
+      maxDepth: 5
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 3
+  - type: report
+    parameters:
+      template: traditional-html
+      reportDir: /zap/wrk/reports
+      reportFile: zap-baseline.html
+      reportTitle: OWASP ZAP Baseline - Parking Intelligent
+      reportDescription: Exploration Spider et analyse passive de l'application locale.
+  - type: report
+    parameters:
+      template: traditional-json
+      reportDir: /zap/wrk/reports
+      reportFile: zap-baseline.json
+      reportTitle: OWASP ZAP Baseline - Parking Intelligent
+      reportDescription: Exploration Spider et analyse passive de l'application locale.

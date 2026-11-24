@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<checkstyle version="9.3">
+<file name="/home/kamal/Desktop/ParkingIntelligent/tarifs-service/src/main/java/com/parking/tarifs/dto/CalculRequest.java">
+<error line="3" column="8" severity="warning" message="Unused import - java.math.BigDecimal." source="com.puppycrawl.tools.checkstyle.checks.imports.UnusedImportsCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/tarifs-service/src/main/java/com/parking/tarifs/security/AuthValidationClient.java">
+<error line="3" column="36" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - com.parking.tarifs.exception.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="5" column="32" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - org.springframework.http.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="8" column="38" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - org.springframework.web.client.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/tarifs-service/src/main/java/com/parking/tarifs/security/InternalMachineAuthFilter.java">
+<error line="5" column="23" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - jakarta.servlet.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="6" column="28" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - jakarta.servlet.http.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="96" column="13" severity="warning" message="&apos;if&apos; construct must use &apos;{}&apos;s." source="com.puppycrawl.tools.checkstyle.checks.blocks.NeedBracesCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/tarifs-service/src/main/java/com/parking/tarifs/entity/TarifHoraire.java">
+<error line="3" column="27" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - jakarta.persistence.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/tarifs-service/src/main/java/com/parking/tarifs/controller/HourlyRateController.java">
+<error line="15" column="32" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - org.springframework.http.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="16" column="47" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - org.springframework.web.bind.annotation.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/tarifs-service/src/main/java/com/parking/tarifs/controller/InternalTarifsController.java">
+<error line="11" column="47" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - org.springframework.web.bind.annotation.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/tarifs-service/src/main/java/com/parking/tarifs/controller/GlobalErrorHandler.java">
+<error line="4" column="36" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - com.parking.tarifs.exception.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="6" column="32" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - org.springframework.http.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="8" column="47" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - org.springframework.web.bind.annotation.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+</file>
+</checkstyle>

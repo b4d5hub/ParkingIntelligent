@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<checkstyle version="9.3">
+<file name="/home/kamal/Desktop/ParkingIntelligent/places-service/src/main/java/com/parking/places_service/entity/PlaceCommand.java">
+<error line="3" column="27" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - jakarta.persistence.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/places-service/src/main/java/com/parking/places_service/entity/Place.java">
+<error line="3" column="27" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - jakarta.persistence.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/places-service/src/main/java/com/parking/places_service/controller/InternalPlaceController.java">
+<error line="10" column="47" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - org.springframework.web.bind.annotation.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/places-service/src/main/java/com/parking/places_service/controller/PlaceController.java">
+<error line="13" column="47" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - org.springframework.web.bind.annotation.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+</file>
+</checkstyle>

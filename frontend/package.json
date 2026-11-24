@@ -2,9 +2,14 @@
   "name": "parking-intelligent-frontend",
   "private": true,
   "type": "module",
+  "allowScripts": {
+    "cypress": true
+  },
   "scripts": {
     "build": "ng build",
-    "test": "node --test test/*.test.js tests/*.test.mjs"
+    "test": "node --test test/*.test.js tests/*.test.mjs",
+    "e2e": "cypress run",
+    "e2e:open": "cypress open"
   },
   "dependencies": {
     "@angular/common": "^20.3.0",
@@ -21,6 +26,7 @@
     "@angular/cli": "^20.3.0",
     "@angular/compiler-cli": "^20.3.0",
     "@tailwindcss/postcss": "^4.3.5",
+    "cypress": "^16.3.0",
     "postcss": "^8.5.33",
     "tailwindcss": "^4.3.5",
     "typescript": "~5.9.2"
