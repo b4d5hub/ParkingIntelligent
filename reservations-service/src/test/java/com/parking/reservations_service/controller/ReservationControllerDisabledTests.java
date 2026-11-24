@@ -15,6 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(ReservationController.class)
 @WithMockUser
+@org.springframework.test.context.TestPropertySource(properties = "reservations.auth.enabled=false")
 class ReservationControllerDisabledTests {
 
     @Autowired

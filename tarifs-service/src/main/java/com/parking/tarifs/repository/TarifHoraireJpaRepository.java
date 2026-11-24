@@ -1,6 +1,8 @@
 package com.parking.tarifs.repository;
 
 import com.parking.tarifs.entity.TarifHoraire;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -19,4 +21,9 @@ public interface TarifHoraireJpaRepository extends JpaRepository<TarifHoraire, L
      */
     Optional<TarifHoraire> findFirstByValableAPartirLessThanEqualOrderByValableAPartirDescIdDesc(
             OffsetDateTime maintenant);
+
+    /**
+     * Récupère toutes les lignes de tarif par ordre antéchronologique (plus récent en premier).
+     */
+    Page<TarifHoraire> findAllByOrderByValableAPartirDescIdDesc(Pageable pageable);
 }

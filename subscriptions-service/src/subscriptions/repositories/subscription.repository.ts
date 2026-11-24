@@ -1,0 +1,46 @@
+import type { SubscriptionEntity, SubscriptionPeriod, SubscriptionPrice, SubscriptionStatus } from '../entities/subscription.entity';
+
+export const SUBSCRIPTION_REPOSITORY = Symbol('SUBSCRIPTION_REPOSITORY');
+export const SUBSCRIPTION_PRICE_REPOSITORY = Symbol('SUBSCRIPTION_PRICE_REPOSITORY');
+
+export class SubscriptionNotFoundError extends Error {}
+export class SubscriptionPaymentConflictError extends Error {}
+
+export interface NewSubscription {
+  userId: string;
+  period: SubscriptionPeriod;
+  startsAt: Date;
+  endsAt: Date;
+  price: string;
+  currency: string;
+  status?: SubscriptionStatus;
+  paymentReference?: string | null;
+}
+
+export interface PaginatedSubscriptions {
+  content: SubscriptionEntity[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}
+
+export interface SubscriptionRepository {
+  create(input: NewSubscription): Promise<SubscriptionEntity>;
+  findByUserId(userId: string): Promise<SubscriptionEntity[]>;
+  findById(id: string): Promise<SubscriptionEntity | null>;
+  activateAfterPayment(id: string, paymentReference: string): Promise<SubscriptionEntity>;
+  expireDueSubscriptions(at: Date): Promise<number>;
+  findExpiringBetween(from: Date, through: Date): Promise<SubscriptionEntity[]>;
+  claimExpirationNotification(id: string, sentAt: Date): Promise<SubscriptionEntity | null>;
+  hasActiveSubscription(userId: string, start: Date, end: Date): Promise<boolean>;
+  cancel(id: string, userId: string): Promise<SubscriptionEntity>;
+  findAllPaginated(page: number, size: number, status?: SubscriptionStatus): Promise<PaginatedSubscriptions>;
+}
+
+export interface SubscriptionPriceRepository {
+  findActivePrice(period: SubscriptionPeriod): Promise<SubscriptionPrice | null>;
+  findAllActivePrices(): Promise<SubscriptionPrice[]>;
+  findAllPrices(): Promise<SubscriptionPrice[]>;
+  updatePrice(period: SubscriptionPeriod, price: string, active: boolean): Promise<SubscriptionPrice>;
+}

@@ -1,0 +1,7 @@
+@import "../css/base.css" layer(legacy);
+@import "../css/layout.css" layer(legacy);
+@import "../css/components.css" layer(legacy);
+@import "../css/pages.css" layer(legacy);
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" source("./");
+@source "../js";

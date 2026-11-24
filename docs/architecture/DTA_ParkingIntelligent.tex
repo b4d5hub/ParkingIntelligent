@@ -1,0 +1,544 @@
+\documentclass[11pt,a4paper]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=2.3cm]{geometry}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+
+\definecolor{parkinggreen}{HTML}{287A4B}
+\definecolor{parkinggray}{HTML}{F1F4F2}
+\definecolor{codegray}{HTML}{F4F4F4}
+\hypersetup{colorlinks=true,linkcolor=parkinggreen,urlcolor=parkinggreen,citecolor=parkinggreen}
+\setlength{\parskip}{0.45em}
+\setlength{\parindent}{0pt}
+\renewcommand{\arraystretch}{1.2}
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{Parking Intelligent — DAT}
+\rhead{Architecture technique}
+\cfoot{\thepage}
+
+\newcommand{\capture}[3]{%
+  \par\smallskip\noindent\textbf{Description de la figure.} #3\par\smallskip
+  \begin{figure}[H]
+    \centering
+    \IfFileExists{#1}{%
+      \includegraphics[width=0.96\textwidth,height=8cm,keepaspectratio]{#1}%
+    }{\IfFileExists{docs/architecture/#1}{%
+      \includegraphics[width=0.96\textwidth,height=8cm,keepaspectratio]{docs/architecture/#1}%
+    }{%
+      \fcolorbox{parkinggreen}{white}{%
+        \parbox[c][5.0cm][c]{0.88\textwidth}{%
+          \centering\color{parkinggreen}\Large\textbf{Capture à ajouter}\\[0.6em]
+          \normalsize #2\\[0.4em]
+          \small Fichier prévu : \texttt{#1}%
+        }%
+      }%
+    }}
+    \IfFileExists{#1}{\caption{#2}}{%
+      \IfFileExists{docs/architecture/#1}{\caption{#2}}{\caption{Emplacement réservé : #2}}%
+    }
+  \end{figure}
+}
+
+\lstset{basicstyle=\ttfamily\small,backgroundcolor=\color{codegray},frame=single,breaklines=true}
+
+\begin{document}
+
+\begin{titlepage}
+  \centering
+  \vspace*{2.0cm}
+  {\Huge\bfseries\color{parkinggreen} Document d'Architecture Technique\par}
+  \vspace{0.7cm}
+  {\LARGE Parking Intelligent\par}
+  \vspace{1.4cm}
+  {\large Architecture applicative, déploiement, sécurité et validation\par}
+  \vfill
+  \begin{tabular}{rl}
+    \textbf{Projet :} & Parking Intelligent \\
+    \textbf{Version du document :} & 1.0 \\
+    \textbf{Date :} & 24 novembre 2026 \\
+    \textbf{Périmètre :} & dépôt logiciel et résultats d'essais disponibles \\
+  \end{tabular}
+  \vfill
+  {\large Document de travail — preuves de tests à compléter\par}
+\end{titlepage}
+
+\tableofcontents
+\clearpage
+
+\chapter*{Historique et statut}
+\addcontentsline{toc}{chapter}{Historique et statut}
+Ce document décrit l'architecture actuellement présente dans le dépôt et rapporte les exécutions observées dans les fichiers de résultats ou dans les échanges de validation. Les résultats ne sont pas assimilés à une homologation : les outils qui ont échoué ou dont le rapport n'est pas présent sont explicitement signalés. Les captures des interfaces et des résultats JaCoCo, SonarQube, Cypress, JMeter, Snyk, Checkstyle et OWASP ZAP sont intégrées. Les preuves reflètent un environnement local de démonstration et doivent être rejouées après toute évolution importante du code ou de la configuration.
+
+\begin{longtable}{p{2.6cm}p{2.2cm}p{9.1cm}}
+\toprule
+\textbf{Version} & \textbf{Date} & \textbf{Évolution} \\
+\midrule
+1.0 & 24/11/2026 & Première version, construite à partir des POM Maven, Docker Compose, guides de test, artefacts JaCoCo/JMeter/Snyk et résultats Cypress/Sonar communiqués. \\
+\bottomrule
+\end{longtable}
+
+\chapter{Résumé exécutif}
+Parking Intelligent est une application web de gestion de stationnement. Elle permet aux conducteurs de consulter les places, réserver et gérer leurs abonnements; aux agents de traiter les opérations du parking; et aux administrateurs de piloter les référentiels et les activités. L'interface Angular sert ces trois espaces depuis une application commune.
+
+Le système est composé de cinq services métier : Auth, Réservations, Places, Tarifs et Abonnements. Auth porte l'identité et les sessions; Réservations orchestre les opérations de réservation et s'intègre avec Places et Tarifs. Le service Tarifs peut appliquer une réduction fournie par Abonnements. Les services partagent actuellement une base PostgreSQL et communiquent par HTTP sur un réseau Docker privé. Les quatre services Java sont construits avec Spring Boot; Abonnements utilise NestJS.
+
+Le déploiement local est orchestré par Docker Compose. Le navigateur n'accède qu'au frontend publié sur loopback; le routage API et la communication entre services restent sur le réseau Compose. Les données PostgreSQL sont conservées dans un volume nommé. Les détails de recette et les résultats des outils d'analyse sont regroupés dans le dernier chapitre.
+
+\chapter{Objectifs, périmètre et hypothèses}
+\section{Objectifs}
+Ce DAT fournit une vue commune de la structure logicielle, des échanges, du déploiement local, des mécanismes de sécurité et des validations. Il sert de base de maintenance et de préparation à la recette du projet.
+
+\section{Périmètre fonctionnel}
+Le produit regroupe les capacités suivantes :
+\begin{longtable}{p{2.7cm}p{10.2cm}}
+\toprule
+\textbf{Profil} & \textbf{Capacités principales} \\
+\midrule
+Conducteur & Consulter les places, choisir un créneau, demander une estimation, créer et suivre ses réservations, consulter ou souscrire un abonnement. \\
+Agent & Consulter les opérations de la période et enregistrer les étapes d'arrivée et de départ des véhicules. \\
+Administrateur & Consulter le tableau de bord, gérer les places, tarifs, abonnements, réservations et comptes utilisateurs, ainsi que les rôles et états de comptes. \\
+Multi-rôles & Accéder aux espaces correspondant à l'ensemble des rôles associés au compte. \\
+\bottomrule
+\end{longtable}
+Les fonctions de paiement et de facturation sont simulées dans le périmètre actuel; le projet ne doit pas être considéré comme une plateforme de paiement intégrée.
+
+\section{Périmètre technique}
+Sont décrits le frontend Angular, les services Java, le service NestJS, PostgreSQL, Docker Compose ainsi que les outils qualité et sécurité utilisés ou configurés : Checkstyle, JaCoCo, SonarQube, JMeter, Cypress, OWASP ZAP et Snyk.
+
+\section{Hypothèses et limites}
+Les éléments sont établis à partir du dépôt local et des sorties fournies pendant les essais. Les URL et mots de passe par défaut de Compose sont des valeurs locales de démonstration; ils ne doivent pas être repris en production. Checkstyle a été exécuté sur les quatre services Java et ZAP a terminé un scan passif de l'interface web. Le scan ZAP est non authentifié et ne couvre donc pas l'ensemble des routes protégées. Une analyse SonarQube récente a abouti avec le statut « Passed »; les métriques sont celles visibles sur la capture intégrée et peuvent évoluer lors des analyses suivantes.
+
+\chapter{Architecture générale}
+\section{Vue logique}
+Le navigateur communique avec le frontend, seul composant publié sur le poste hôte par défaut (\texttt{127.0.0.1:8080}). Nginx sert l'application Angular et relaie les routes d'API vers les services internes. Les services communiquent sur le réseau Compose \texttt{parking}. PostgreSQL conserve les comptes, sessions et données métier.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  node distance=0.8cm and 1.1cm,
+  svc/.style={draw=parkinggreen,rounded corners,fill=parkinggray,align=center,minimum width=2.4cm,minimum height=0.9cm},
+  infra/.style={draw=black!60,rounded corners,fill=black!4,align=center,minimum width=2.6cm,minimum height=0.9cm},
+  arrow/.style={-{Latex[length=2.5mm]},thick}
+]
+  \node[infra] (browser) {Navigateur\\Conducteur / Agent / Admin};
+  \node[svc,right=of browser] (front) {Frontend\\Angular + Nginx};
+  \node[svc,right=of front,yshift=1.75cm] (auth) {Auth\\Spring Boot};
+  \node[svc,right=of front,yshift=0.58cm] (res) {Réservations\\Spring Boot};
+  \node[svc,right=of front,yshift=-0.58cm] (places) {Places\\Spring Boot};
+  \node[svc,right=of front,yshift=-1.75cm] (tarifs) {Tarifs\\Spring Boot};
+  \node[svc,below=of tarifs] (subs) {Abonnements\\NestJS};
+  \node[infra,right=2.0cm of res,yshift=-0.95cm] (db) {PostgreSQL 17\\base partagée};
+  \draw[arrow] (browser) -- (front);
+  \draw[arrow] (front) -- (auth);
+  \draw[arrow] (front) -- (res);
+  \draw[arrow] (front) -- (places);
+  \draw[arrow] (front) -- (tarifs);
+  \draw[arrow] (front) -- (subs);
+  \draw[arrow] (res) -- (places);
+  \draw[arrow] (res) -- (tarifs);
+  \draw[arrow] (tarifs) -- (subs);
+  \draw[arrow] (auth) -- (db);
+  \draw[arrow] (res) -- (db);
+  \draw[arrow] (places) -- (db);
+  \draw[arrow] (tarifs) -- (db);
+  \draw[arrow] (subs) -- (db);
+\end{tikzpicture}
+\caption{Vue logique des composants et des communications principales.}
+\end{figure}
+
+Les flèches vers PostgreSQL représentent la configuration actuelle : les cinq services utilisent la base partagée. L'authentification est centralisée par Auth; les appels de validation de session ne sont pas représentés sur chaque liaison afin de garder le schéma lisible.
+
+\subsection{Parcours de réservation}
+La figure suivante développe le cas d'usage principal. Le frontend reçoit la demande utilisateur, puis le service Réservations coordonne les vérifications métier et les appels aux services spécialisés. Le contrôle de session est effectué côté serveur; les règles d'accès ne reposent pas uniquement sur l'interface.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  node distance=0.75cm and 0.9cm,
+  step/.style={draw=parkinggreen,rounded corners,fill=parkinggray,align=center,text width=2.35cm,minimum height=1.0cm,font=\small},
+  aux/.style={draw=black!60,rounded corners,fill=black!4,align=center,text width=2.2cm,minimum height=0.9cm,font=\small},
+  flow/.style={-{Latex[length=2.2mm]},thick},
+  reply/.style={-{Latex[length=2.2mm]},thick,dashed}
+]
+  \node[step] (driver) {Conducteur\\choisit place et créneau};
+  \node[step,right=of driver] (front) {Frontend\\transmet la demande};
+  \node[step,right=of front] (reservation) {Réservations\\orchestre le cas métier};
+  \node[aux,right=of reservation,yshift=1.55cm] (auth) {Auth\\valide la session};
+  \node[aux,right=of reservation] (places) {Places\\vérifie / actualise l'état};
+  \node[aux,right=of reservation,yshift=-1.55cm] (tariffs) {Tarifs\\calcule l'estimation};
+  \node[aux,below=of tariffs] (subs) {Abonnements\\fournit la réduction};
+  \node[aux,right=of places,xshift=1.2cm] (db) {PostgreSQL\\persistance partagée};
+  \draw[flow] (driver) -- (front);
+  \draw[flow] (front) -- (reservation);
+  \draw[flow] (reservation) -- node[above,sloped,font=\scriptsize]{contrôle session} (auth);
+  \draw[flow] (reservation) -- node[above,font=\scriptsize]{état place} (places);
+  \draw[flow] (reservation) -- node[below,sloped,font=\scriptsize]{estimation} (tariffs);
+  \draw[flow] (tariffs) -- node[right,font=\scriptsize]{si applicable} (subs);
+  \draw[flow] (places) -- (db);
+  \draw[flow] (reservation) |- (db);
+  \draw[reply] (db) |- (reservation);
+  \draw[reply] (reservation) -- (front);
+  \draw[reply] (front) -- (driver);
+\end{tikzpicture}
+\caption{Coordination simplifiée d'une demande de réservation. Les appels sont conditionnés par l'opération métier.}
+\end{figure}
+
+\section{Composants et technologies}
+\begin{longtable}{p{3cm}p{3.4cm}p{7.5cm}}
+\toprule
+\textbf{Composant} & \textbf{Technologies} & \textbf{Responsabilité} \\
+\midrule
+Frontend & Angular 20, TypeScript, Tailwind CSS, Nginx & Interface commune, navigation par rôle, proxy des requêtes API. \\
+Auth & Java 21, Spring Boot 4.1.2, Spring Security, Spring Session JDBC & Connexion, autorisations, comptes, sessions et validation interne. \\
+Réservations & Java 21, Spring Boot 4.1.2 & Cycle de réservation, coordination des appels Places/Tarifs, règles de réservation et tâches planifiées. \\
+Places & Java 17, Spring Boot 4.1.2, JPA/Flyway & Gestion et état des places, opérations internes et synchronisation métier. \\
+Tarifs & Java 21, Spring Boot 4.1.2, JPA & Tarif horaire, historique et estimation de prix, application éventuelle d'une réduction Abonnements. \\
+Abonnements & Node.js, NestJS 11, TypeScript, PostgreSQL & Plans et abonnements, contrôle de session et API interne consommée par Tarifs. \\
+Base de données & PostgreSQL 17 & Stockage relationnel partagé, initialisé par les scripts SQL montés dans Compose. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Lecture des composants et responsabilités opérationnelles}
+Le frontend constitue la façade utilisateur. Il présente des écrans adaptés aux rôles et envoie les commandes aux API à travers le proxy Nginx. Les règles de prix, de disponibilité et d'autorisation restent dans les services, afin que les appels directs aux API soient soumis aux mêmes contrôles que les actions déclenchées depuis l'interface.
+
+Auth est le point de référence de l'identité. Il établit une session côté serveur et fournit aux autres services un moyen de valider l'identité et les rôles associés à une requête. La session JDBC rend l'état de connexion persistant au redémarrage d'Auth, tant que la base de données reste disponible. Les comptes de démonstration visibles dans les captures servent à illustrer les parcours et ne constituent pas des identifiants de production.
+
+Réservations porte le processus transversal : il reçoit les demandes du conducteur, vérifie les préconditions, obtient les informations de place et de prix, puis persiste l'état de réservation. Les actions ultérieures de l'agent font évoluer le suivi opérationnel. Cette centralisation évite que le navigateur ait à coordonner plusieurs appels métier pour une seule opération.
+
+Places et Tarifs restent les autorités de leurs référentiels respectifs. Réservations consomme leurs interfaces internes pour synchroniser l'occupation et obtenir des montants cohérents. Abonnements expose deux usages complémentaires : les fonctions de gestion et de consultation par l'utilisateur, ainsi qu'une interface de calcul interne utilisée par Tarifs. Cette séparation rend explicite la différence entre un appel associé à une session utilisateur et un appel de service à service.
+
+\subsection{Matrice des domaines}
+\begin{longtable}{p{2.6cm}p{3.2cm}p{4.3cm}p{3.4cm}}
+\toprule
+\textbf{Domaine} & \textbf{Données principales} & \textbf{API / consommateurs} & \textbf{Règle de frontière} \\
+\midrule
+Identité & Comptes, rôles, sessions JDBC & Routes Auth utilisées par le navigateur et les services métier & Auth est l'autorité de vérification du principal. \\
+Réservation & Réservations, commandes de synchronisation, verrous par place & Frontend, Places, Tarifs et Auth & Porte le processus métier de réservation; les décisions de disponibilité et prix sont déléguées. \\
+Places & Places et commandes de place & Frontend et Réservations & Sépare les opérations publiques des opérations internes de synchronisation. \\
+Tarification & Tarif horaire et historique & Frontend, Réservations, Abonnements & Calcule l'estimation et demande une réduction au domaine Abonnements. \\
+Abonnements & Plans/prix et souscriptions & Frontend, Auth et Tarifs & L'utilisateur doit être authentifié; le calcul de réduction dispose d'une interface machine. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Responsabilités et frontières métier}
+\textbf{Auth} est l'autorité centrale des identités. Il gère les comptes, rôles, connexions, déconnexions, sessions JDBC et fonctions d'administration des utilisateurs. Les services qui protègent leurs API interrogent cette autorité pour vérifier le principal.
+
+\textbf{Réservations} porte le cycle de vie métier des réservations et les vues destinées aux conducteurs, agents et administrateurs. Il coordonne les échanges avec Places et Tarifs et expose les opérations de lecture, de création et de suivi.
+
+\textbf{Places} gère le référentiel des emplacements et leur état opérationnel. Il sépare les opérations destinées à l'utilisateur des routes internes utilisées par les autres services.
+
+\textbf{Tarifs} conserve le tarif horaire et son historique, produit des estimations et interroge Abonnements pour obtenir une éventuelle réduction. Les routes internes sont protégées par une authentification machine.
+
+\textbf{Abonnements} gère les plans, les souscriptions, leur statut et leur expiration. Il vérifie la session utilisateur auprès d'Auth et expose une interface interne distincte pour le calcul de réduction demandé par Tarifs.
+
+\textbf{Frontend} compose les pages par rôle, applique la navigation côté client et relaie les requêtes API. Il ne porte pas l'autorité d'accès : les services doivent refaire les contrôles côté serveur.
+
+\section{Déploiement local}
+La commande principale est \texttt{docker compose up --build -d}. PostgreSQL est déclaré sain par un contrôle \texttt{pg\_isready}; Auth attend cette condition. Les autres services utilisent des dépendances Compose et le réseau privé \texttt{parking}. Le seul port applicatif publié est le port frontend 8080 lié à loopback. Le volume nommé \texttt{parking\_db\_data} préserve les données entre les redémarrages. Il ne faut pas employer \texttt{docker compose down -v} si ces données doivent être conservées.
+
+SonarQube est lancé séparément par \texttt{compose.sonar.yml} sur le port local 9000, avec des volumes de données, extensions et logs dédiés. ZAP dispose d'un overlay \texttt{compose.zap.yml} et d'un profil Compose \texttt{security}. Ces outils n'entrent pas dans le réseau de production et sont réservés à l'environnement de validation.
+
+Le démarrage suit trois étapes : construire ou récupérer les images, attendre l'état sain de PostgreSQL, puis démarrer les applications qui consomment la base et les autres API. Il est utile de distinguer l'état du processus (conteneur démarré) de la disponibilité métier (route de santé accessible et dépendances prêtes). En cas de diagnostic, les journaux d'un service se consultent séparément avec Compose; redémarrer tout l'environnement peut masquer l'ordre dans lequel une dépendance est tombée.
+
+Les outils de contrôle sont des composants auxiliaires. SonarQube stocke ses propres données dans ses volumes et l'analyse Maven est lancée depuis le poste développeur. ZAP rejoint le réseau applicatif pour atteindre le frontend par son nom de service et écrit ses rapports dans le répertoire monté depuis l'hôte. Le navigateur local utilise donc `localhost`, alors que ZAP cible `frontend:8080` à l'intérieur du réseau Docker.
+
+\subsection{Topologie des conteneurs et ports}
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  node distance=0.7cm and 0.8cm,
+  box/.style={draw=parkinggreen,rounded corners,fill=parkinggray,align=center,text width=2.4cm,minimum height=0.85cm,font=\small},
+  host/.style={draw=black!65,dashed,rounded corners,inner sep=0.45cm},
+  link/.style={-{Latex[length=2.2mm]},thick}
+]
+  \node[box] (browser) {Poste développeur\\navigateur / Maven};
+  \node[box,right=of browser] (web) {Frontend\\127.0.0.1:8080};
+  \node[box,right=of web] (backend) {Auth / Réservations\\Places / Tarifs / Abonnements};
+  \node[box,right=of backend] (postgres) {PostgreSQL\\5432 interne};
+  \node[box,below=of web] (sonar) {SonarQube\\127.0.0.1:9000};
+  \node[host,fit=(web)(backend)(postgres),label=above:{\small Réseau Docker Compose applicatif}] (compose) {};
+  \draw[link] (browser) -- node[above,font=\scriptsize]{HTTP local} (web);
+  \draw[link] (web) -- node[above,font=\scriptsize]{proxy API} (backend);
+  \draw[link] (backend) -- node[above,font=\scriptsize]{SQL} (postgres);
+  \draw[link,dashed] (browser) |- node[pos=0.75,left,font=\scriptsize]{analyse locale} (sonar);
+\end{tikzpicture}
+\caption{Topologie de déploiement local. SonarQube est isolé du Compose applicatif et publié localement pour l'analyse.}
+\end{figure}
+
+\begin{longtable}{p{3.1cm}p{3cm}p{3cm}p{4.2cm}}
+\toprule
+\textbf{Conteneur} & \textbf{Port interne} & \textbf{Publication hôte} & \textbf{Dépendance / persistance} \\
+\midrule
+Frontend & 8080 & \texttt{127.0.0.1:8080} & Nginx sert Angular; relaie les routes API. \\
+Auth & 8083 & Aucune & Attend PostgreSQL sain; partage le réseau \texttt{parking}. \\
+Réservations & 8081 & Aucune & PostgreSQL, Auth, Places et Tarifs. \\
+Places & 8082 & Aucune & PostgreSQL et validation auprès d'Auth. \\
+Tarifs & 8082 & Aucune & PostgreSQL, Auth et client Abonnements. \\
+Abonnements & 8082 & Aucune & PostgreSQL et validation de session auprès d'Auth. \\
+PostgreSQL & 5432 & Aucune & Volume nommé \texttt{parking\_db\_data}. \\
+SonarQube (overlay) & 9000 & \texttt{127.0.0.1:9000} & Volumes de données, extensions et logs dédiés. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Choix d'architecture et conséquences}
+Le découpage par domaines permet de faire évoluer séparément les API et les images de service. Il introduit en contrepartie des appels réseau, une dépendance de disponibilité entre Réservations, Places et Tarifs, ainsi que plusieurs configurations d'authentification machine. Les timeouts, erreurs et politiques de reprise doivent donc être suivis au niveau de chaque intégration.
+
+La base PostgreSQL est partagée pour simplifier le déploiement et l'intégration du projet. Ce choix ne fournit pas une isolation physique des données par service : les migrations SQL, l'évolution des schémas et les accès aux tables doivent être coordonnés. Une séparation logique par schéma ou base pourra être envisagée si l'indépendance des services devient un objectif de déploiement.
+
+Le choix de communications synchrones HTTP simplifie les contrats et le suivi des réponses dans le prototype, mais ajoute de la latence à chaque appel en chaîne. Un parcours Réservations peut être ralenti par la validation Auth, la lecture de Places ou le calcul Tarifs; il peut aussi échouer si l'une de ces dépendances est indisponible. Les timeouts et les retours d'erreur doivent donc être cohérents, et les opérations qui modifient plusieurs domaines doivent permettre une reprise contrôlée.
+
+Le déploiement Compose regroupe plusieurs technologies dans un environnement reproductible et facile à lancer sur un poste. Il ne définit toutefois ni haute disponibilité, ni équilibrage multi-instance, ni stratégie de reprise après panne de l'hôte. Le passage à un environnement durable nécessiterait une orchestration adaptée, des sauvegardes testées et une supervision des services et de la base.
+
+\subsection{Démarrage, vérifications et arrêt}
+Pour démarrer la plateforme locale, la procédure courante est \texttt{docker compose up --build -d}, puis la vérification de l'état des services avec \texttt{docker compose ps} et des journaux en cas d'erreur. L'interface est disponible sur \texttt{http://localhost:8080}. Un conteneur marqué « Up » confirme seulement que son processus est actif; il faut également vérifier les appels applicatifs du parcours à valider.
+
+L'arrêt simple avec \texttt{docker compose down} conserve le volume de données. La suppression du volume de base efface les données locales et ne doit être utilisée que lorsque la réinitialisation est voulue. Avant une campagne de mesure, il convient de noter les services démarrés, la configuration de charge et les rapports produits afin de rendre les résultats comparables.
+
+\chapter{Données, interfaces et flux}
+\section{Données persistées}
+PostgreSQL contient les comptes et rôles, les sessions JDBC, les réservations, les places, les tarifs et les abonnements. L'initialisation de l'environnement local est réalisée par des scripts SQL montés dans le conteneur DB depuis les répertoires des services. Les services utilisent leurs propres configurations de connexion, mais partagent le même moteur et la même base logique.
+
+Le volume Compose \texttt{parking\_db\_data} est le mécanisme de persistance local. Il garantit la conservation des fichiers de données entre les redémarrages du conteneur, mais ne remplace ni une sauvegarde cohérente ni une procédure de restauration. Les migrations doivent être appliquées dans un ordre compatible avec les dépendances entre domaines. Les changements de structure doivent être testés sur une base temporaire avant d'être appliqués à un environnement conservant des données.
+
+\begin{longtable}{p{2.9cm}p{4.5cm}p{5.8cm}}
+\toprule
+\textbf{Domaine} & \textbf{Tables représentatives} & \textbf{Éléments d'évolution} \\
+\midrule
+Auth & \texttt{parking\_auth\_users}, \texttt{parking\_auth\_user\_roles}, \texttt{SPRING\_SESSION}, \texttt{SPRING\_SESSION\_ATTRIBUTES} & Comptes et rôles initiaux; sessions et index d'expiration/principal. \\
+Réservations & \texttt{reservations}, \texttt{reservation\_place\_guards}, \texttt{reservation\_place\_commands} & Évolution du workflow, index sur intervalles et conducteur, commandes de synchronisation. \\
+Places & \texttt{place}, \texttt{place\_command} & Migrations Flyway pour état d'occupation et commandes associées. \\
+Tarifs & \texttt{tarif\_horaire} & Tarif courant et évolution historique selon le schéma du service. \\
+Abonnements & \texttt{subscriptions}, \texttt{subscription\_prices} & Souscriptions, expiration, tarifs de plans et index de consultation. \\
+\bottomrule
+\end{longtable}
+
+\section{Interfaces principales}
+Les routes principales sont regroupées par domaine. Le proxy frontend présente les préfixes \texttt{/api}; les routes \texttt{/internal} sont destinées aux échanges entre services et ne font pas partie du parcours navigateur normal.
+\begin{longtable}{p{4.2cm}p{2.5cm}p{2.8cm}p{4.1cm}}
+\toprule
+\textbf{Méthode et route} & \textbf{Service} & \textbf{Appelant} & \textbf{Fonction} \\
+\midrule
+\texttt{GET /api/auth/csrf}, \texttt{POST /api/auth/login}, \texttt{GET /api/auth/me} & Auth & Frontend & Protection CSRF, ouverture de session et identité courante. \\
+\texttt{POST /internal/auth/validate-user-request} & Auth & Services métier & Vérification interne d'une requête utilisateur/session. \\
+\texttt{GET, POST /api/places}, \texttt{GET /api/places/\{id\}}, \texttt{PATCH /api/places/\{id\}/statut} & Places & Frontend / Admin & Consultation, création et mise à jour du statut des places. \\
+\texttt{GET /internal/places/\{id\}}, \texttt{POST .../occupy}, \texttt{POST .../release} & Places & Réservations & Consultation et synchronisation d'occupation interne. \\
+\texttt{GET /api/reservations/me}, \texttt{GET /api/reservations/admin} & Réservations & Conducteur / Admin & Listes de réservations selon le rôle. \\
+\texttt{GET /api/reservations/availability}, \texttt{POST /api/reservations/quote} & Réservations & Conducteur & Disponibilité et estimation préalable. \\
+\texttt{POST /api/reservations} & Réservations & Conducteur & Création d'une réservation. \\
+\texttt{POST /api/reservations/\{id\}/cancel}, \texttt{.../arrival}, \texttt{.../departure} & Réservations & Conducteur / Agent & Annulation et suivi opérationnel de l'arrivée/départ. \\
+\texttt{GET /api/tarifs/hourly}, \texttt{PUT /api/tarifs/hourly} & Tarifs & Frontend / Admin & Lecture et mise à jour du tarif horaire. \\
+\texttt{POST /internal/tarifs/estimate}, \texttt{POST /internal/tarifs/final} & Tarifs & Réservations & Calcul interne du montant estimé ou final. \\
+\texttt{GET /api/subscriptions/plans}, \texttt{GET /api/subscriptions/me}, \texttt{POST /api/subscriptions} & Abonnements & Conducteur & Plans, souscriptions et consultation du compte courant. \\
+\texttt{GET /internal/subscriptions/discount} & Abonnements & Tarifs & Recherche de réduction applicable à un conducteur. \\
+\bottomrule
+\end{longtable}
+
+\section{Flux d'authentification}
+Le frontend récupère un jeton CSRF, envoie les identifiants de connexion avec ce jeton, puis conserve le cookie de session renvoyé par Auth. Les requêtes suivantes transportent le cookie via le proxy du frontend. Les services valident le principal auprès de l'autorité Auth. Les appels interservices utilisent des identifiants machine distincts. Les secrets de développement sont injectés par variables d'environnement Compose et peuvent être remplacés par un fichier \texttt{.env}; aucun secret réel ne doit être versionné.
+
+\section{Flux de réservation et de tarification}
+Réservations coordonne le parcours de réservation et appelle Places et Tarifs selon les opérations. Tarifs peut consulter Abonnements pour calculer une réduction. Les accès directs aux API internes sont protégés par identifiants machine. Les règles financières et de paiement restent simulées dans le périmètre actuel; elles doivent être confirmées avant une exploitation réelle.
+
+\section{Flux d'administration}
+Les pages administrateur utilisent le même mécanisme de session que les autres profils. Les actions de gestion des comptes, tarifs et référentiels sont transmises aux API métier, qui vérifient le rôle et les règles métier côté serveur. La visibilité d'un onglet dans Angular améliore l'expérience d'usage, mais ne constitue pas une mesure de sécurité.
+
+\section{Cycle de vie d'une réservation}
+Le cycle ci-dessous distingue les opérations demandées par le conducteur de celles enregistrées par l'agent. La disponibilité est évaluée sur un créneau : une place libre à l'instant présent peut ne pas l'être pour toute la période demandée. Le montant affiché avant confirmation est une estimation; le montant final dépend des règles appliquées au départ et du temps réellement consommé.
+
+\begin{longtable}{p{2.2cm}p{4.3cm}p{6.6cm}}
+\toprule
+\textbf{Étape} & \textbf{Acteur / service} & \textbf{Traitement attendu} \\
+\midrule
+1. Consultation & Conducteur / Frontend & Choix d'une plage de dates, d'un type de véhicule et d'une place; affichage des disponibilités connues. \\
+2. Estimation & Réservations / Tarifs & Vérification des paramètres et calcul du prix estimé; consultation éventuelle d'une réduction d'abonnement. \\
+3. Confirmation & Conducteur / Réservations & Contrôle des préconditions et enregistrement de la réservation avec son créneau et son état initial. \\
+4. Arrivée & Agent / Réservations / Places & Enregistrement de l'arrivée et synchronisation de l'occupation de la place. \\
+5. Départ & Agent / Réservations / Tarifs / Places & Enregistrement du départ, calcul final, clôture de la réservation et libération de la place. \\
+6. Consultation & Conducteur / Administrateur & Affichage de l'historique ou des indicateurs selon le rôle et les filtres demandés. \\
+\bottomrule
+\end{longtable}
+Ce cycle est une vue fonctionnelle simplifiée. Le dépôt reste la référence pour les transitions exactes d'état et les règles de calcul. Les paiements montrés par l'interface sont simulés; aucune transaction réelle n'est exécutée.
+
+\chapter{Sécurité, exploitation et continuité}
+\section{Contrôles présents dans la conception}
+\begin{itemize}[leftmargin=*]
+  \item Accès navigateur publié sur loopback en développement; les services métier ne publient pas de ports applicatifs sur l'hôte dans le Compose principal.
+  \item Authentification centralisée, sessions côté serveur via JDBC, protection CSRF et contrôle des rôles.
+  \item Identifiants machine séparés pour les échanges interservices.
+  \item Le conteneur frontend est configuré en lecture seule avec un répertoire temporaire dédié.
+  \item Les mots de passe et secrets du Compose sont des valeurs locales de démonstration; HTTPS et une gestion de secrets adaptée sont requis hors environnement local.
+\end{itemize}
+
+Ces contrôles réduisent l'exposition accidentelle dans l'environnement local, sans établir à eux seuls un niveau de sécurité de production. La session, la confidentialité des secrets et le filtrage des routes internes doivent être évalués par configuration et par tests. Les routes internes devraient rester accessibles uniquement depuis le réseau de confiance et être authentifiées même lorsqu'elles ne sont pas publiées sur le poste hôte.
+
+\section{Configuration et secrets}
+Compose distingue les paramètres fonctionnels par variables d'environnement : URL de base de données, identifiants DB, adresses des services et comptes techniques. Les valeurs par défaut facilitent l'installation locale; elles ne sont pas un coffre de secrets. Pour un environnement partagé, il faut injecter des secrets distincts, limiter leur portée, prévoir leur rotation et éviter leur affichage dans les journaux ou les lignes de commande.
+
+\section{Réseau et exposition}
+Les ports des services internes ne sont pas publiés sur l'hôte par le Compose principal. Le frontend est publié sur loopback, et le trafic interne transite par le réseau Compose. Cette disposition limite l'exposition locale mais ne chiffre pas les communications internes. Un déploiement multi-hôte devra définir des règles de pare-feu, le chiffrement des communications, un point d'entrée TLS et des contrôles d'accès réseau explicites.
+
+\section{Disponibilité et gestion des erreurs}
+Auth dépend de PostgreSQL pour les comptes et sessions. Les parcours métier dépendent à leur tour d'Auth et, selon l'opération, de Places, Tarifs ou Abonnements. L'indisponibilité d'une dépendance peut donc dégrader une fonction même si le frontend répond. Les clients doivent conserver des délais d'attente explicites et produire des erreurs compréhensibles; les journaux doivent inclure un identifiant de corrélation sans données personnelles ou secrets.
+
+Une erreur de dépendance ne devrait pas être transformée en réponse de succès silencieuse. Pour une réservation, le système doit conserver un état compréhensible et permettre à l'opérateur de déterminer si l'enregistrement a abouti, si l'occupation a été synchronisée et si le calcul tarifaire a réussi. Les scénarios de panne partielle et de reprise sont donc des cas de test importants, notamment autour des commandes de synchronisation de Places.
+
+\section{Exploitation et sauvegarde}
+Le healthcheck PostgreSQL contrôle que la base accepte des connexions; la simple présence d'un conteneur en état \texttt{Up} ne signifie pas que toute l'application est prête. Les journaux applicatifs sont consultables avec Compose, mais la configuration actuelle ne définit pas de centralisation ni de politique de rétention. Avant une mise en service durable, documenter les sauvegardes PostgreSQL, tester leur restauration, surveiller l'espace disque, la mémoire, les erreurs HTTP et la disponibilité des dépendances.
+
+Une procédure d'exploitation minimale devrait préciser comment démarrer et arrêter chaque overlay, où consulter les journaux, quels répertoires contiennent les rapports, comment sauvegarder/restaurer PostgreSQL et comment réinitialiser l'environnement sans supprimer par erreur des données à conserver. Les rapports d'analyse peuvent contenir des chemins locaux ou des informations techniques; leur diffusion doit être contrôlée.
+
+\section{Limites de l'environnement local}
+L'installation Compose utilise HTTP et des identifiants de démonstration. Elle est adaptée au développement et à la recette locale, pas à une exposition directe sur Internet.
+
+\chapter{Évolutions et recommandations d'architecture}
+\begin{enumerate}[leftmargin=*]
+  \item Définir des objectifs de disponibilité par service et suivre les dépendances critiques (Auth, PostgreSQL, Places, Tarifs et Abonnements) avec des délais d'attente cohérents.
+  \item Clarifier la propriété des tables et les règles de migration de la base partagée. Une séparation logique par schéma pourra être évaluée si l'indépendance des domaines devient nécessaire.
+  \item Centraliser les journaux et la corrélation des requêtes; ajouter des indicateurs de disponibilité, latence, taux d'erreur et consommation des ressources.
+  \item Documenter et tester les sauvegardes/restaurations PostgreSQL ainsi que la procédure de reprise après incident.
+  \item Remplacer les secrets de démonstration, activer TLS au point d'entrée et définir les règles d'accès réseau avant toute exposition hors poste local.
+  \item Confirmer le contrat métier et financier de réservation, paiement et tarification avant l'intégration d'un fournisseur de paiement réel.
+  \item Ajouter des tests d'intégration reproductibles pour les appels interservices et les transitions de réservation, y compris les réponses en erreur et les tentatives de reprise.
+  \item Établir des seuils de qualité suivis dans le temps pour la couverture, les vulnérabilités, les avertissements Checkstyle, les temps de réponse et le taux d'erreur.
+\end{enumerate}
+
+\chapter{Captures du produit}
+Les captures suivantes documentent les interfaces réellement fournies. Les écrans sont regroupés par rôle afin de suivre les principaux parcours du produit. Les informations visibles sont des données de démonstration.
+
+\capture{captures/01-deploiement-compose.png}{Conteneurs de l'application dans Docker Desktop.}{La vue liste les conteneurs Places, Réservations, PostgreSQL, Auth, Tarifs, SonarQube, Frontend et Abonnements. Elle illustre leur regroupement dans l'environnement Docker local; le schéma logique du chapitre Architecture décrit leurs communications.}
+
+\section{Parcours conducteur}
+\capture{captures/02-conducteur-connexion.png}{Écran de connexion du conducteur.}{La page présente l'identité visuelle du produit et le formulaire de connexion avec l'adresse conducteur déjà renseignée. Le mot de passe est masqué; cette capture situe le point d'entrée du parcours authentifié.}
+
+\capture{captures/03-conducteur-reservation.png}{Sélection d'une place et d'un créneau.}{Le conducteur choisit une place, les dates et le type de véhicule avant de demander une estimation. Les places affichées « À vérifier » indiquent que leur disponibilité doit être confirmée par le service métier.}
+
+\capture{captures/04-conducteur-reservations.png}{Historique et suivi des réservations du conducteur.}{La carte montre une réservation confirmée, son créneau, la place, l'estimation et le montant simulé. Elle illustre la consultation et l'annulation depuis l'espace conducteur.}
+
+\capture{captures/05-conducteur-confirmation-abonnement.png}{Confirmation d'une souscription à un abonnement.}{La fenêtre récapitule la formule mensuelle et son prix avant confirmation. Le message précise que le paiement est simulé et qu'aucun paiement réel n'est effectué.}
+
+\capture{captures/06-conducteur-abonnements.png}{Formules et abonnements du conducteur.}{L'écran compare les formules journalière, hebdomadaire, mensuelle et annuelle, puis affiche l'abonnement actif du conducteur avec son montant et sa période.}
+
+\section{Parcours agent}
+\capture{captures/07-agent-operations.png}{Suivi opérationnel des arrivées et départs.}{L'agent filtre les réservations par période, visualise l'occupation des places et consulte une réservation avec l'action d'enregistrer l'arrivée. Le même espace sert au suivi des départs.}
+
+\section{Parcours administrateur}
+\capture{captures/08-admin-tableau-de-bord.png}{Indicateurs du tableau de bord administrateur.}{Les cartes synthétisent le chiffre d'affaires, l'occupation, le nombre de réservations, leur répartition par statut et le suivi des abonnements sur la période choisie.}
+
+\capture{captures/09-admin-places.png}{Gestion des places du parking.}{L'administrateur consulte l'état des neuf places et dispose d'actions de mise hors service ou d'ajout d'un emplacement.}
+
+\capture{captures/10-admin-tarifs.png}{Gestion du tarif horaire et de son historique.}{Le panneau montre le tarif en vigueur, le formulaire de modification et l'historique des changements, avec date et auteur.}
+
+\capture{captures/11-admin-abonnements.png}{Gestion des formules et consultation des souscriptions.}{L'administrateur peut consulter les formules, modifier leurs prix ou leur activation, puis parcourir l'historique global des souscriptions.}
+
+\capture{captures/12-admin-reservations.png}{Recherche et consultation des réservations.}{Les filtres permettent d'affiner la liste par statut, période, place ou conducteur. Le tableau présente les créneaux, l'état opérationnel et le montant.}
+
+\capture{captures/13-admin-utilisateurs.png}{Administration des comptes et des rôles.}{La liste présente les comptes, leurs rôles et leur état. Les actions disponibles permettent de gérer les accès; les contrôles empêchent certaines modifications sur le compte administrateur connecté.}
+
+\chapter{Campagne de tests et résultats}
+Cette dernière partie rassemble les validations techniques. Les résultats décrivent les rapports présents et les dernières sorties communiquées; ils ne remplacent pas une recette complète en préproduction.
+
+\section{Synthèse des résultats}
+\begin{longtable}{p{2.5cm}p{3.5cm}p{7cm}}
+\toprule
+\textbf{Contrôle} & \textbf{Résultat observé} & \textbf{État / suite} \\
+\midrule
+Maven / JUnit & 220 tests découverts; 186 exécutés; 34 ignorés; 0 échec et 0 erreur. & Build \texttt{mvn clean verify} réussi pour les quatre services Java. Les tests nécessitant PostgreSQL ou un environnement dédié restent à lancer séparément. \\
+JaCoCo & Couverture de lignes agrégée : 54,7\%. & Rapports individuels et agrégé disponibles sous \texttt{target/site/jacoco-aggregate/} et dans chaque service sous \texttt{target/site/jacoco/}. \\
+Checkstyle & Audit exécuté sur les quatre services : 104 avertissements, 0 erreur. & Détail : Auth 7, Places 4, Réservations 79, Tarifs 14. Les rapports XML sont archivés dans \texttt{security/reports/checkstyle/}; les violations restent à corriger. \\
+SonarQube & Analyse réussie, statut « Passed » : Sécurité D (10), Fiabilité C (3), Maintenabilité A (68), couverture 49,8\%, duplications 11,8\%. & Capture du tableau de bord intégrée. Le précédent incident (arrêts forcés et corruption H2) a été résolu en recréant le volume SonarQube; ces métriques correspondent à la nouvelle analyse. \\
+Cypress & 5 scénarios réussis sur 6 lors du dernier run communiqué. & Le login réel conducteur a reçu HTTP 504; les navigations simulées Agent, Administrateur et multirôles ont réussi. Six captures du run sont intégrées au DAT. \\
+Vitest Abonnements & 84 tests réussis dans 6 fichiers. & Exécution locale réussie avec \texttt{npm test} dans \texttt{subscriptions-service}. \\
+Tests unitaires frontend & Scripts Node.js présents. & Aucun rapport d'exécution récent disponible parmi les artefacts examinés. \\
+JMeter & 26 échantillons, 22 erreurs (84,6\%); moyenne 10,61 s, médiane 14,08 s, maximum 15,081 s. & Résultat non satisfaisant; corriger les erreurs et refaire l'essai avant d'établir une capacité de référence. \\
+Snyk & 19 chemins de dépendances vulnérables : 4 critiques, 5 hautes, 8 moyennes et 2 faibles. & Résultat JSON archivé. Les 18 alertes Maven concernent Tarifs et une alerte haute concerne Abonnements; les rapports du frontend et du POM racine ne signalent aucune vulnérabilité. Corriger en priorité les niveaux critiques et hauts, puis rescanner. \\
+OWASP ZAP & Scan passif terminé : 14 URL découvertes et 1 alerte informationnelle. & Aucun avertissement de vulnérabilité n'apparaît dans ce scan non authentifié. Rapports HTML/JSON générés dans \texttt{security/reports/}. Le conteneur utilise l'image \texttt{zap-bare} avec un plan Automation Framework passif. \\
+\bottomrule
+\end{longtable}
+
+\subsection{Comment interpréter les indicateurs}
+Les outils ne mesurent pas tous le même aspect du système. JUnit et Vitest vérifient des comportements automatisés à l'échelle du code; JaCoCo mesure la part de code Java exécutée par ces tests; Cypress observe des parcours dans un navigateur; JMeter mesure les réponses pendant une charge définie; Checkstyle contrôle la conformité à des règles de style; Snyk examine les dépendances connues; SonarQube agrège des indicateurs statiques; ZAP observe le comportement HTTP de l'application accessible pendant son scan.
+
+Une couverture de 54,7\% signifie que cette proportion des lignes instrumentées a été exécutée pendant les tests concernés. Elle ne prouve pas que toutes les assertions métier sont correctes. De même, les 19 alertes Snyk correspondent aux dépendances vulnérables détectées dans les manifestes analysés et ne sont pas 19 failles directement exploitables démontrées dans l'application. Les grades SonarQube synthétisent des règles et seuils de l'analyse; ils ne remplacent pas une revue de sécurité.
+
+Le résultat JMeter est particulièrement à interpréter comme un diagnostic : 22 réponses sur 26 sont en erreur et plusieurs dépassent le délai d'attente ou reçoivent des statuts 401/503. Dans ces conditions, les percentiles et la moyenne incluent des échecs et ne caractérisent pas une capacité stable. Il faut d'abord stabiliser les services et les données de test, puis répéter la mesure en isolant les scénarios et en conservant les mêmes paramètres.
+
+Le scan ZAP est un scan passif limité à l'interface atteinte par le Spider. Zéro alerte de risque n'équivaut pas à une certification de sécurité : les routes nécessitant une authentification, les validations métier et les défauts non observables dans les réponses explorées restent hors de ce périmètre. Une campagne complémentaire authentifiée et une revue des alertes après chaque évolution sont nécessaires pour étendre la couverture.
+
+\section{Détail de la couverture Java}
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Module} & \textbf{Lignes couvertes} & \textbf{Lignes manquées} & \textbf{Couverture} \\
+\midrule
+Auth & 354 & 242 & 59,4\% \\
+Places & 69 & 145 & 32,2\% \\
+Réservations & 346 & 349 & 49,8\% \\
+Tarifs & 241 & 99 & 70,9\% \\
+\midrule
+\textbf{Total agrégé} & \textbf{1010} & \textbf{835} & \textbf{54,7\%} \\
+\bottomrule
+\end{tabular}
+\end{center}
+Les rapports HTML se trouvent sous \texttt{SERVICE/target/site/jacoco/index.html} et \texttt{target/site/jacoco-aggregate/index.html}. Le rapport agrégé actuel donne 54,7\% de couverture de lignes; il présente 59,4\% pour Auth, 32,2\% pour Places, 49,8\% pour Réservations et 70,9\% pour Tarifs. Les rapports Surefire détaillés sont enregistrés sous \texttt{SERVICE/target/surefire-reports/}. Le \href{../../target/site/jacoco-aggregate/index.html}{rapport JaCoCo agrégé} est également disponible dans le dépôt.
+La couverture JaCoCo agrégée (54,7\%) et celle affichée par SonarQube (49,8\%) proviennent de rapports distincts; leur écart n'a pas encore été réconcilié. Elles sont donc présentées séparément et ne doivent pas être interprétées comme une valeur unique.
+
+\section{Périmètre des scénarios exécutés}
+Les suites Java utilisent JUnit/Surefire pour tester les règles métier, contrôleurs, filtres de sécurité, clients HTTP et repositories. Trente-quatre scénarios d'intégration ont été ignorés dans le build Maven observé; ils nécessitent notamment PostgreSQL ou un environnement d'intégration dédié.
+
+Les six scénarios Cypress vérifient le formulaire et les erreurs de saisie, le login conducteur réel, puis les navigations Conducteur, Agent, Administrateur et multirôles. Les scénarios Agent, Administrateur et multirôles simulent la réponse d'authentification afin de tester les droits et l'interface sans dépendre des données du serveur.
+
+Le plan JMeter simule cinq conducteurs avec une montée en charge de 20 secondes et une durée de 60 secondes. Chaque boucle consulte le profil, les réservations, les places, le tarif horaire et les plans d'abonnement. Le résultat conservé est \texttt{performance/results/run-20261124-001919.jtl}; son tableau de bord est sous \texttt{performance/results/dashboard-20261124-001919/}. Le rapport total compte 26 échantillons, dont 22 en erreur (84,6\%), un temps moyen de 10,61 s et un maximum de 15,081 s. Il documente un essai non concluant, pas une capacité nominale. Le \href{../../performance/results/dashboard-20261124-001919/index.html}{dashboard JMeter} est consultable dans le dépôt.
+
+Le service Abonnements dispose de six fichiers de tests Vitest couvrant notamment le module base de données, l'authentification machine, le repository PostgreSQL, le service métier, l'expiration des souscriptions et le contrôleur. La commande \texttt{npm test} a exécuté les 84 tests avec succès. Les tests frontend sont définis dans \texttt{frontend/test/} et \texttt{frontend/tests/}; aucun résultat récent n'a été archivé pour ces suites. Le \href{../../security/reports/snyk-open-source.json}{rapport Snyk détaillé} est dans le dépôt. ZAP a exploré 14 URL et n'a signalé qu'une information sur l'application Web moderne; le rapport ne contient pas d'alerte de vulnérabilité de risque élevé, moyen ou faible.
+
+\section{Captures des résultats}
+Les captures JaCoCo, SonarQube, Cypress, JMeter, Snyk, Checkstyle et ZAP sont intégrées ci-dessous. Les rapports textuels ou structurés associés sont conservés dans le dépôt lorsque disponibles, afin de pouvoir examiner le détail au-delà de l'image.
+
+\capture{captures/tests/01-jacoco.png}{Rapport JaCoCo agrégé des quatre services Java.}{Cette vue compare Auth, Places, Réservations et Tarifs. Les colonnes présentent la couverture des instructions et des branches, puis les lignes, méthodes et classes manquées. La couverture de lignes agrégée est de 54,7\%; le XML associé alimente l'analyse SonarQube.}
+\capture{captures/tests/02-sonarqube.png}{Tableau de bord SonarQube après analyse.}{Le tableau de bord du projet Parking Intelligent affiche une analyse réussie (« Passed »), 4,7 k lignes Java/XML, 10 problèmes de sécurité (D), 3 de fiabilité (C), 68 de maintenabilité (A), une couverture de 49,8\% et 11,8\% de duplications. Le token d'analyse n'est pas visible.}
+\capture{captures/tests/cypress/01-formulaire.png}{Cypress — affichage du formulaire de connexion.}{La capture prouve que le scénario Cypress ouvre l'écran de connexion du conducteur.}
+\capture{captures/tests/cypress/02-validation.png}{Cypress — validation des champs obligatoires.}{Le formulaire signale les champs manquants sans appeler le serveur; ce scénario vérifie la validation côté interface.}
+\capture{captures/tests/cypress/03-login-conducteur-echec.png}{Cypress — échec du login réel conducteur.}{Le scénario de connexion réel a échoué lors du dernier run, avec une réponse HTTP 504. Cette capture conserve l'échec observé; elle ne doit pas être présentée comme une connexion réussie.}
+\capture{captures/tests/cypress/04-navigation-agent.png}{Cypress — navigation de l'espace Agent.}{Le scénario utilise une session simulée et vérifie l'affichage des commandes et de l'onglet correspondant au rôle Agent.}
+\capture{captures/tests/cypress/05-navigation-admin.png}{Cypress — navigation de l'espace Administrateur.}{Le scénario utilise une session simulée et vérifie l'ouverture du tableau de bord ainsi que les onglets d'administration.}
+\capture{captures/tests/cypress/06-navigation-multirole.png}{Cypress — navigation d'un compte multirôles.}{Le scénario vérifie que les espaces Conducteur, Agent et Administrateur sont proposés au compte possédant ces rôles.}
+\capture{captures/tests/04-jmeter.png}{Dashboard JMeter — synthèse des performances.}{Le tableau totalise 26 échantillons, 22 échecs (84,62\%), un temps moyen de 10,61 secondes et un débit de 0,38 transaction par seconde. La répartition PASS/FAIL montre que cet essai de cinq utilisateurs n'est pas concluant.}
+\capture{captures/tests/04-jmeter-erreurs.png}{Dashboard JMeter — répartition des erreurs.}{Les erreurs se répartissent entre 11 expirations de délai sans réponse HTTP, 5 réponses 401, 4 réponses 503 temporaires, 1 réponse 403 et 1 autre 503. Cette vue aide à distinguer les problèmes de disponibilité des erreurs d'authentification.}
+\capture{captures/tests/05-snyk.png}{Rapport Snyk — synthèse des projets analysés.}{Le rapport présente cinq projets et 19 chemins de dépendances vulnérables : 4 critiques, 5 hauts, 8 moyens et 2 faibles. Le POM racine et le frontend n'ont aucune vulnérabilité connue dans cette analyse.}
+\capture{captures/tests/05-snyk-detail.png}{Rapport Snyk — détail des dépendances vulnérables.}{Cette vue montre notamment les alertes Maven de Tarifs et l'alerte haute de Multer dans Abonnements. Elle complète la synthèse par les noms des vulnérabilités et les versions de dépendances concernées.}
+\capture{captures/tests/06-zap.png}{Rapport OWASP ZAP — scan passif.}{Le Spider a découvert 14 URL sur l'interface non authentifiée. Le résumé visible indique zéro alerte de risque élevé, moyen ou faible et une alerte informationnelle. Le rapport JSON décrit l'application comme une application Web moderne. Les rapports générés sont \href{../../security/reports/zap-baseline.html}{HTML} et \href{../../security/reports/zap-baseline.json}{JSON}. Le scan passif observe les réponses accessibles sans authentification; il ne prouve pas l'absence de vulnérabilités et ne couvre pas les routes protégées des API.}
+\capture{captures/tests/07-checkstyle-auth.png}{Checkstyle — rapport du service Auth.}{Le résumé indique 4 fichiers analysés, 7 avertissements, aucune information et aucune erreur. Les avertissements relèvent des règles configurées; l'audit ne bloque pas la génération du rapport.}
+\capture{captures/tests/07-checkstyle-places.png}{Checkstyle — rapport du service Places.}{Le résumé indique 4 fichiers analysés, 4 avertissements et aucune erreur. Cette page est le rapport HTML Maven du service Places.}
+\capture{captures/tests/07-checkstyle-reservations.png}{Checkstyle — rapport du service Réservations.}{Le résumé indique 14 fichiers analysés, 79 avertissements et aucune erreur. Ce service concentre la majorité des écarts relevés par les règles communes.}
+\capture{captures/tests/07-checkstyle-tarifs.png}{Checkstyle — rapport du service Tarifs.}{Le résumé indique 7 fichiers analysés, 14 avertissements et aucune erreur. Avec les trois autres services, le total de l'audit s'élève à 104 avertissements.}
+
+\chapter{Références du dépôt}
+\begin{itemize}[leftmargin=*]
+  \item Assemblage local : \texttt{docker-compose.yml}.
+  \item POM agrégateur et couverture : \texttt{pom.xml}; POMs des quatre services Java.
+  \item Règles Checkstyle : \texttt{config/checkstyle/checkstyle.xml}.
+  \item Rapports JaCoCo : répertoires \texttt{target/site/jacoco} et \texttt{target/site/jacoco-aggregate}.
+  \item Plan JMeter et résultats : \texttt{performance/parking-load-test.jmx}, \texttt{performance/results/}.
+  \item Scénarios Cypress et captures : \texttt{frontend/cypress/e2e/auth.cy.js}, \texttt{frontend/cypress/screenshots/}; procédure : \texttt{frontend/TESTING.md}.
+  \item Tests frontend historiques : scripts Node.js dans \texttt{frontend/test/} et \texttt{frontend/tests/}; tests NestJS dans \texttt{subscriptions-service/test/}.
+  \item Sécurité : \texttt{compose.sonar.yml}, \texttt{compose.zap.yml}, \texttt{security/zap-automation.yaml}, rapports sous \texttt{security/reports/}.
+  \item Présentation et commandes projet : \texttt{README.md}.
+\end{itemize}
+
+\end{document}

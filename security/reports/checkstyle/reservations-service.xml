@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<checkstyle version="9.3">
+<file name="/home/kamal/Desktop/ParkingIntelligent/reservations-service/src/main/java/com/parking/reservations_service/service/PlaceCommandService.java">
+<error line="20" column="49" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="20" column="102" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="20" column="134" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="20" column="154" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/reservations-service/src/main/java/com/parking/reservations_service/service/ReservationFailure.java">
+<error line="9" column="45" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="9" column="63" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/reservations-service/src/main/java/com/parking/reservations_service/service/ReservationService.java">
+<error line="3" column="47" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - com.parking.reservations_service.entity.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="4" column="44" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - com.parking.reservations_service.dto.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="20" column="17" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - java.time.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="21" column="17" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - java.util.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="34" column="63" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="34" column="87" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="187" column="89" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="188" column="103" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="190" column="100" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="191" column="85" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="194" column="106" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="227" column="96" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="249" column="99" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="266" column="80" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="269" column="91" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/reservations-service/src/main/java/com/parking/reservations_service/auth/AuthSessionPolicy.java">
+<error line="4" column="8" severity="warning" message="Unused import - org.springframework.security.web.context.HttpSessionSecurityContextRepository." source="com.puppycrawl.tools.checkstyle.checks.imports.UnusedImportsCheck"/>
+<error line="7" column="23" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - jakarta.servlet.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="8" column="28" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - jakarta.servlet.http.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="11" column="17" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - java.time.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="21" column="53" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="21" column="79" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="21" column="101" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="42" column="99" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="45" column="108" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="51" column="80" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="51" column="120" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/reservations-service/src/main/java/com/parking/reservations_service/auth/ProvisionAccount.java">
+<error line="13" column="17" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - java.util.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="24" column="49" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="24" column="102" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="24" column="126" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="48" column="85" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/reservations-service/src/main/java/com/parking/reservations_service/auth/InternalAuthConfiguration.java">
+<error line="3" column="46" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - org.springframework.context.annotation.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="17" column="17" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - java.util.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="45" column="85" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="45" column="134" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/reservations-service/src/main/java/com/parking/reservations_service/auth/AuthLoginThrottle.java">
+<error line="3" column="23" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - jakarta.servlet.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="4" column="28" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - jakarta.servlet.http.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="9" column="17" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - java.util.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="21" column="61" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="21" column="95" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="21" column="117" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="29" column="44" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="40" column="82" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="40" column="131" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="41" column="100" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="42" column="138" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/reservations-service/src/main/java/com/parking/reservations_service/auth/InternalAuthController.java">
+<error line="4" column="28" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - jakarta.servlet.http.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="6" column="38" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - jakarta.validation.constraints.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="9" column="32" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - org.springframework.http.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="12" column="45" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - org.springframework.security.web.csrf.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="13" column="35" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - org.springframework.session.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="14" column="47" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - org.springframework.web.bind.annotation.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="17" column="17" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - java.time.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="28" column="55" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="28" column="75" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="44" column="73" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="58" column="79" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/reservations-service/src/main/java/com/parking/reservations_service/auth/AuthSessionConfiguration.java">
+<error line="3" column="46" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - org.springframework.context.annotation.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="7" column="44" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - org.springframework.session.web.http.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="9" column="17" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - java.time.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="17" column="75" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="18" column="69" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="18" column="105" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="29" column="96" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+<error line="29" column="117" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/reservations-service/src/main/java/com/parking/reservations_service/dto/ReservationCreateRequest.java">
+<error line="4" column="38" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - jakarta.validation.constraints.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/reservations-service/src/main/java/com/parking/reservations_service/entity/Reservation.java">
+<error line="3" column="27" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - jakarta.persistence.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/reservations-service/src/main/java/com/parking/reservations_service/controller/ReservationErrorHandler.java">
+<error line="5" column="47" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - org.springframework.web.bind.annotation.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/reservations-service/src/main/java/com/parking/reservations_service/controller/ReservationController.java">
+<error line="3" column="44" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - com.parking.reservations_service.dto.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="8" column="38" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - jakarta.validation.constraints.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="15" column="47" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - org.springframework.web.bind.annotation.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+</file>
+<file name="/home/kamal/Desktop/ParkingIntelligent/reservations-service/src/main/java/com/parking/reservations_service/integration/HttpParkingGateway.java">
+<error line="7" column="38" severity="warning" message="Using the &apos;.*&apos; form of import should be avoided - org.springframework.web.client.*." source="com.puppycrawl.tools.checkstyle.checks.imports.AvoidStarImportCheck"/>
+<error line="64" column="147" severity="warning" message="Only one statement per line allowed." source="com.puppycrawl.tools.checkstyle.checks.coding.OneStatementPerLineCheck"/>
+</file>
+</checkstyle>

@@ -17,7 +17,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.util.*;
 
 @Configuration(proxyBeanMethods = false)
-@Profile("auth")
+@Profile("legacy-auth")
 public class InternalAuthConfiguration {
     @Bean @Order(1)
     SecurityFilterChain internalAuthChain(HttpSecurity http, Environment env, PasswordEncoder encoder, ObjectMapper mapper) throws Exception {

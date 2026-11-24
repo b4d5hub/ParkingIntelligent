@@ -18,6 +18,17 @@ public final class ParkingUserPrincipal extends User {
     private final String displayName;
     private final String credentialStamp;
 
+    public ParkingUserPrincipal(Long userId, String displayName, java.util.List<String> roles) {
+        super("user" + userId, "", true, true, true, true,
+                roles.stream()
+                        .map(r -> r.startsWith("ROLE_") ? r : "ROLE_" + r)
+                        .map(SimpleGrantedAuthority::new)
+                        .toList());
+        this.userId = userId;
+        this.displayName = displayName;
+        this.credentialStamp = "";
+    }
+
     public ParkingUserPrincipal(AuthAccount account) {
         super(account.email(), account.passwordHash(), account.enabled(), true, true, true,
                 account.roles().stream()

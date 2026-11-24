@@ -32,6 +32,25 @@ public class ReservationController {
         return reservationService.mine(user.getUserId(), page, size);
     }
 
+    @GetMapping("/admin")
+    public ReservationPage adminList(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) OffsetDateTime from,
+            @RequestParam(required = false) OffsetDateTime to,
+            @RequestParam(required = false) Long placeId,
+            @RequestParam(required = false) Long conducteurId) {
+        return reservationService.adminList(page, size, status, from, to, placeId, conducteurId);
+    }
+
+    @GetMapping("/admin/stats")
+    public ReservationStatsResponse adminStats(
+            @RequestParam(required = false) OffsetDateTime from,
+            @RequestParam(required = false) OffsetDateTime to) {
+        return reservationService.adminStats(from, to);
+    }
+
     @GetMapping("/{id}")
     public ReservationResponse findById(@AuthenticationPrincipal ParkingUserPrincipal user, @PathVariable @Positive Long id) {
         return reservationService.mineById(user.getUserId(), id);

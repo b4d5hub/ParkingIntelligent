@@ -1,0 +1,16 @@
+services:
+  zap:
+    image: zaproxy/zap-bare:latest
+    profiles: [security]
+    depends_on:
+      - frontend
+    entrypoint: ["zap.sh"]
+    command:
+      - "-Xmx512m"
+      - "-cmd"
+      - "-autorun"
+      - "/zap/wrk/zap-automation.yaml"
+    volumes:
+      - ./security:/zap/wrk:rw
+    networks:
+      - parking

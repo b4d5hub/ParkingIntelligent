@@ -1,11 +1,11 @@
-# Installation locale du module. Les trois autres services seront ajoutes par leurs auteurs.
+# Installation locale de Reservations et Abonnements. Places et Tarifs restent a integrer.
 services:
   db:
     image: postgres:17
     environment:
       POSTGRES_DB: parking
       POSTGRES_USER: parking
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD dans .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-parking-local-db-password}
     volumes:
       - shared-data:/var/lib/postgresql/data
       - ./reservations-service/src/main/resources/db/reservations.sql:/docker-entrypoint-initdb.d/001_reservations.sql:ro
@@ -13,11 +13,26 @@ services:
       - ./reservations-service/src/main/resources/db/auth/001_accounts.sql:/docker-entrypoint-initdb.d/003_accounts.sql:ro
       - ./reservations-service/src/main/resources/db/auth/002_sessions.sql:/docker-entrypoint-initdb.d/004_sessions.sql:ro
       - ./reservations-service/src/main/resources/db/004_booking_payment.sql:/docker-entrypoint-initdb.d/005_booking_payment.sql:ro
+      - ./subscriptions-service/scripts/script001.sql:/docker-entrypoint-initdb.d/007_subscriptions.sql:ro
+      - ./subscriptions-service/scripts/script002.sql:/docker-entrypoint-initdb.d/008_subscription_prices.sql:ro
+      - ./subscriptions-service/scripts/script003.sql:/docker-entrypoint-initdb.d/009_subscription_seed.sql:ro
+      - ./auth-service/src/main/resources/db/010_seed_accounts.sql:/docker-entrypoint-initdb.d/010_seed_accounts.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U parking -d parking"]
       interval: 3s
       timeout: 3s
       retries: 20
+    networks: [parking]
+  auth:
+    build: ./auth-service
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: compose
+      DB_URL: jdbc:postgresql://db:5432/parking
+      DB_USER: parking
+      DB_PASSWORD: ${DB_PASSWORD:-parking-local-db-password}
+    depends_on:
+      db: {condition: service_healthy}
     networks: [parking]
   reservations:
     build: ./reservations-service
@@ -25,27 +40,39 @@ services:
       SPRING_PROFILES_ACTIVE: auth,compose
       DB_URL: jdbc:postgresql://db:5432/parking
       DB_USER: parking
-      DB_PASSWORD: ${DB_PASSWORD:?Definir DB_PASSWORD dans .env}
+      DB_PASSWORD: ${DB_PASSWORD:-parking-local-db-password}
       PLACES_API_URL: ${PLACES_API_URL:-}
-      PLACES_API_USER: ${PLACES_API_USER:-}
-      PLACES_API_PASSWORD: ${PLACES_API_PASSWORD:-}
+      PLACES_API_USER: ${PLACES_API_USER:-reservations-places-local}
+      PLACES_API_PASSWORD: ${PLACES_API_PASSWORD:-local-places-api-2026}
       TARIFFS_API_URL: ${TARIFFS_API_URL:-}
-      TARIFFS_API_USER: ${TARIFFS_API_USER:-}
-      TARIFFS_API_PASSWORD: ${TARIFFS_API_PASSWORD:-}
+      TARIFFS_API_USER: ${TARIFFS_API_USER:-reservations-tarifs-local}
+      TARIFFS_API_PASSWORD: ${TARIFFS_API_PASSWORD:-local-tarifs-api-2026}
       PLACES_SYNC_ENABLED: ${PLACES_SYNC_ENABLED:-false}
-      AUTH_PLACES_USER: ${AUTH_PLACES_USER:-}
-      AUTH_PLACES_PASSWORD_HASH: ${AUTH_PLACES_PASSWORD_HASH:-}
-      AUTH_TARIFFS_USER: ${AUTH_TARIFFS_USER:-}
-      AUTH_TARIFFS_PASSWORD_HASH: ${AUTH_TARIFFS_PASSWORD_HASH:-}
-      AUTH_SUBSCRIPTIONS_USER: ${AUTH_SUBSCRIPTIONS_USER:-}
-      AUTH_SUBSCRIPTIONS_PASSWORD_HASH: ${AUTH_SUBSCRIPTIONS_PASSWORD_HASH:-}
+      AUTH_API_URL: ${AUTH_API_URL:-http://auth:8083}
+      AUTH_RESERVATIONS_USER: ${AUTH_RESERVATIONS_USER:-reservations}
+      AUTH_RESERVATIONS_PASSWORD: ${AUTH_RESERVATIONS_PASSWORD:-ReservationsAuthSecret2026_xyz}
     depends_on:
       db: {condition: service_healthy}
+    networks: [parking]
+  subscriptions:
+    build: ./subscriptions-service
+    environment:
+      NODE_ENV: production
+      PORT: 8082
+      DB_URL: postgres://db:5432/parking
+      DB_USER: parking
+      DB_PASSWORD: ${DB_PASSWORD:-parking-local-db-password}
+      AUTH_API_URL: ${AUTH_API_URL:-http://auth:8083}
+      AUTH_SUBSCRIPTIONS_USER: ${AUTH_SUBSCRIPTIONS_USER:-abonnements}
+      AUTH_SUBSCRIPTIONS_PASSWORD: ${AUTH_SUBSCRIPTIONS_PASSWORD:-AbonnementsAuthSecret2026_uvw}
+    depends_on:
+      db: {condition: service_healthy}
+      auth: {condition: service_started}
     networks: [parking]
   frontend:
     build: ./frontend
     ports: ["127.0.0.1:${FRONTEND_PORT:-8080}:8080"]
-    depends_on: [reservations]
+    depends_on: [reservations, auth]
     read_only: true
     tmpfs: [/tmp]
     networks: [parking]

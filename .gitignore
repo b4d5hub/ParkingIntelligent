@@ -5,11 +5,40 @@
 **/.idea/
 **/*.iml
 
+# VS Code local files
+**/.vscode/
+
 # Frontend dependencies and build output
 **/node_modules/
 **/dist/
+**/*.tsbuildinfo
 
 # Local environment files
 **/.env
 **/.env.*
 !**/.env.example
+
+# Local scratch files
+c.txt
+
+# JMeter run outputs
+performance/results/
+
+# Security scan reports
+security/reports/*
+!security/reports/checkstyle/
+security/reports/checkstyle/*
+!security/reports/checkstyle/*.html
+!security/reports/checkstyle/*.xml
+!security/reports/zap-baseline.html
+!security/reports/zap-baseline.json
+
+# Local backup of the embedded SonarQube database
+.sonarqube-backup/
+
+# Local SonarQube analysis state and exports
+.sonar/
+sonarqube_data_backup.tar.gz
+
+# Local JMeter console output
+jmeter.log

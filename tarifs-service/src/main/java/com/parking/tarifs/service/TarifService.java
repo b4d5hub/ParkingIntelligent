@@ -123,6 +123,22 @@ public class TarifService {
         return repository.lireTarifCourant();
     }
 
+    /**
+     * Consulte l'historique paginé des tarifs horaires (plus récent en premier).
+     *
+     * @param page numéro de page (0-based)
+     * @param size taille de la page (plafonnée à 100)
+     * @return page de résultats
+     * @throws IllegalArgumentException si page < 0
+     */
+    public com.parking.tarifs.dto.TarifHoraireHistoryPage consulterHistorique(int page, int size) {
+        if (page < 0) {
+            throw new IllegalArgumentException("Le numéro de page ne peut pas être négatif.");
+        }
+        int effectiveSize = size <= 0 ? 20 : Math.min(size, 100);
+        return repository.consulterHistorique(page, effectiveSize);
+    }
+
     // ── Méthodes privées ──────────────────────────────────────────────────────
 
     private BigDecimal calculer(OffsetDateTime debut, OffsetDateTime fin, BigDecimal reductionPourcent) {

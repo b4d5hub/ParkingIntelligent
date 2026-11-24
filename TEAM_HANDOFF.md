@@ -24,17 +24,20 @@ La disponibilité future est calculée sur les créneaux Réservations. Ne pas c
 
 Confirmer estimation du creneau et complement fin prevue -> depart reel, montants decimaux, devise, types de vehicules et date de reduction. Voir le contrat propose dans RESERVATIONS.md.
 
-Contacter Abonnements pour les réductions. Aucune réduction imposée par le navigateur ne doit être acceptée. Aucun abonnement valide signifie zéro réduction.
 
 ## Kamal — Abonnements
 
-Confirmer la correspondance de l'identifiant utilisateur commun et du conducteur. Protéger chaque conducteur pour ses propres abonnements. Fournir à Tarifs le contrat de validation/réduction et ses dates. Les écrans de souscription, renouvellement manuel et annulation restent dans ce module, ainsi que sa simulation de paiement.
+Confirmer la correspondance de l'identifiant utilisateur commun et du conducteur. Protéger chaque conducteur pour ses propres abonnements. 
+
+Règles retenues pour le premier périmètre : chaque abonnement a un identifiant unique, des dates de début et de fin, un prix et un statut ; les formules sont journalière, hebdomadaire, mensuelle ou annuelle ; un abonnement ne devient actif qu'après confirmation du paiement et n'est plus valide à partir de sa date de fin. Le prix vient d'une configuration serveur par période, jamais du navigateur. Tarifs de départ proposés pour le prototype : 40 MAD/jour, 180 MAD/semaine, 450 MAD/mois et 4 800 MAD/an. Générer une notification sept jours avant l'expiration. Le premier service Nest.js, son accès PostgreSQL, ses migrations et son conteneur Compose sont en place. Le raccordement de l'authentification conducteur et du paiement restent à faire ; le job journalise les notifications, l'envoi par courriel viendra quand un service de messagerie sera configuré.
+
+Tests unitaires à livrer en priorité : calcul des dates pour chaque formule, état en attente avant paiement, activation après paiement, confirmation de paiement répétée sans double activation, accès refusé avant paiement et à/après la date de fin, et notification due au seuil des sept jours. Le job réserve la notification par une mise à jour atomique en base. Les tests de dates utilisent une horloge contrôlable et couvrent la limite exacte de la date de fin.
 
 ## Travail commun restant
 
 - Aucune expiration pour absence ; le retard ne prolonge pas le creneau.
 - Accepter les contrats Places/Tarifs/authentification, choisir les identifiants et secrets machines hors Git, puis tester les échanges entre les vrais services. Configurer `PLACES_SYNC_ENABLED=true` après validation du contrat Places.
-- Ajouter les trois services et leurs routes au Compose/frontend commun, avec leurs technologies et ports réels. Réutiliser l'unique base PostgreSQL, sans base séparée par module.
+- Ajouter Places et Tarifs au Compose/frontend commun, avec leurs technologies et ports réels. Abonnements est déjà dans Compose ; raccorder son authentification commune. Réutiliser l'unique base PostgreSQL, sans base séparée par module.
 - Intégrer les écrans Places, Tarifs et Abonnements au frontend. Les écrans Réservations sont portables ; adopter le framework commun seulement après choix d'équipe.
 - Sauvegarder et migrer chaque installation existante après revue des données, créer les comptes utiles et tester les droits dans chacun des quatre backends.
 - Tester les parcours reels : concurrence, annulation sans remboursement, arrivee tardive, depart anticipe sans remboursement, depassement avec complement, reprises reseau et Places, comptes revoques.

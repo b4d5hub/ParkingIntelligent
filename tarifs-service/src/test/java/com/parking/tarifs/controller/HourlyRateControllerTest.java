@@ -1,6 +1,8 @@
 package com.parking.tarifs.controller;
 
 import tools.jackson.databind.ObjectMapper;
+import com.parking.tarifs.dto.TarifHoraireHistoryItem;
+import com.parking.tarifs.dto.TarifHoraireHistoryPage;
 import com.parking.tarifs.dto.TarifHoraireUpdateRequest;
 import com.parking.tarifs.exception.AuthenticationRequiredException;
 import com.parking.tarifs.exception.AccesDeniedAuthentifiedException;
@@ -185,5 +187,73 @@ class HourlyRateControllerTest {
                         .content(mapper.writeValueAsString(corps)))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.code").value("SERVICE_UNAVAILABLE"));
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // GET /api/tarifs/hourly/history
+    // ══════════════════════════════════════════════════════════════════════════
+
+    @Test
+    void getHistory_sansCookieSession_retourne401() throws Exception {
+        mvc.perform(get("/api/tarifs/hourly/history"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+    }
+
+    @Test
+    void getHistory_conducteur_retourne403() throws Exception {
+        when(authClient.valider(eq(SESSION_OK), eq("GET"), isNull()))
+                .thenReturn(new UtilisateurValide("5", "Jean", List.of("CONDUCTEUR"), Instant.now()));
+
+        mvc.perform(get("/api/tarifs/hourly/history")
+                        .cookie(new jakarta.servlet.http.Cookie("PARKING_SESSION", SESSION_OK)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+    }
+
+    @Test
+    void getHistory_admin_retourne200AvecPagination() throws Exception {
+        when(authClient.valider(eq(SESSION_OK), eq("GET"), isNull()))
+                .thenReturn(new UtilisateurValide("1", "Admin", List.of("ADMIN"), Instant.now()));
+
+        TarifHoraireHistoryItem item = new TarifHoraireHistoryItem(
+                1L, new BigDecimal("10.00"), java.time.OffsetDateTime.now(), "Admin", java.time.OffsetDateTime.now());
+        when(repository.consulterHistorique(0, 20))
+                .thenReturn(new TarifHoraireHistoryPage(List.of(item), 0, 20, 1, 1));
+
+        mvc.perform(get("/api/tarifs/hourly/history?page=0&size=20")
+                        .cookie(new jakarta.servlet.http.Cookie("PARKING_SESSION", SESSION_OK)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(1))
+                .andExpect(jsonPath("$.content[0].prixDh").value(10.00))
+                .andExpect(jsonPath("$.content[0].creePar").value("Admin"))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
+    }
+
+    @Test
+    void getHistory_pageNegative_retourne400() throws Exception {
+        when(authClient.valider(eq(SESSION_OK), eq("GET"), isNull()))
+                .thenReturn(new UtilisateurValide("1", "Admin", List.of("ADMIN"), Instant.now()));
+
+        mvc.perform(get("/api/tarifs/hourly/history?page=-1&size=20")
+                        .cookie(new jakarta.servlet.http.Cookie("PARKING_SESSION", SESSION_OK)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+    }
+
+    @Test
+    void getHistory_sizeSuperieurA100_estPlafonneA100() throws Exception {
+        when(authClient.valider(eq(SESSION_OK), eq("GET"), isNull()))
+                .thenReturn(new UtilisateurValide("1", "Admin", List.of("ADMIN"), Instant.now()));
+
+        when(repository.consulterHistorique(0, 100))
+                .thenReturn(new TarifHoraireHistoryPage(List.of(), 0, 100, 0, 0));
+
+        mvc.perform(get("/api/tarifs/hourly/history?page=0&size=500")
+                        .cookie(new jakarta.servlet.http.Cookie("PARKING_SESSION", SESSION_OK)))
+                .andExpect(status().isOk());
+
+        verify(repository).consulterHistorique(0, 100);
     }
 }
